@@ -89,10 +89,15 @@ export function Popover({
 
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerContent className="bottom-14 mb-2 rounded-2xl border-border bg-popover">
+          <DrawerContent
+            className="bottom-14 mb-2 rounded-2xl border-border bg-popover"
+            aria-describedby={`${label}-drawer-desc`}
+          >
             <DrawerHeader className="text-left">
               <DrawerTitle>{label}</DrawerTitle>
-              <p className="text-sm text-muted-foreground">Choose one — it becomes a tag.</p>
+              <p className="text-sm text-muted-foreground" id={`${label}-drawer-desc`}>
+                Choose one — it becomes a tag.
+              </p>
               {value?.shortName ? (
                 <p className="text-xs text-muted-foreground">
                   Current: <span className="font-medium text-foreground">{value.shortName}</span>
