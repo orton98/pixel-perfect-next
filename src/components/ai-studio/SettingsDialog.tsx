@@ -37,7 +37,7 @@ export function SettingsDialog({
     { status: "idle" | "testing" | "success" | "error"; message?: string }
   >({ status: "idle" });
 
-  const openRouterModels = [
+  const defaultOpenRouterModels = [
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
     "anthropic/claude-3.5-sonnet",
@@ -45,6 +45,11 @@ export function SettingsDialog({
     "google/gemini-2.0-flash",
     "meta-llama/llama-3.1-70b-instruct",
   ] as const;
+
+  const [openRouterModelOptions, setOpenRouterModelOptions] = React.useState<string[]>([...defaultOpenRouterModels]);
+  const [openRouterModelsFetch, setOpenRouterModelsFetch] = React.useState<
+    { status: "idle" | "fetching" | "success" | "error"; message?: string }
+  >({ status: "idle" });
 
   const testOpenRouterKey = async () => {
     const key = settings.openRouterApiKey.trim();
@@ -76,14 +81,62 @@ export function SettingsDialog({
     }
   };
 
+  const fetchOpenRouterModels = async () => {
+    const key = settings.openRouterApiKey.trim();
+    if (!key) {
+      setOpenRouterModelsFetch({ status: "error", message: "Paste a key first." });
+      return;
+    }
+
+    setOpenRouterModelsFetch({ status: "fetching", message: "Fetching…" });
+
+    try {
+      const resp = await fetch("https://openrouter.ai/api/v1/models", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${key}`,
+        },
+      });
+
+      if (!resp.ok) {
+        setOpenRouterModelsFetch({
+          status: "error",
+          message: resp.status === 401 ? "Invalid key." : `Request failed (${resp.status}).`,
+        });
+        return;
+      }
+
+      const data = (await resp.json()) as { data?: Array<{ id?: string }> };
+      const ids = (data.data ?? [])
+        .map((m) => String(m.id || "").trim())
+        .filter(Boolean);
+
+      if (!ids.length) {
+        setOpenRouterModelsFetch({ status: "error", message: "No models returned." });
+        return;
+      }
+
+      // Deduplicate and keep things stable.
+      const unique = Array.from(new Set(ids));
+      setOpenRouterModelOptions(unique);
+      setOpenRouterModelsFetch({ status: "success", message: `${unique.length} models loaded.` });
+
+      // If current selection isn't in the fetched list, keep it (it remains selectable via the special option below).
+    } catch {
+      setOpenRouterModelsFetch({ status: "error", message: "Network error." });
+    }
+  };
+
   React.useEffect(() => {
     // Auto-hide the key when switching sections.
     setRevealOpenRouterKey(false);
   }, [section]);
 
   React.useEffect(() => {
-    // Reset test state whenever the key changes.
+    // Reset test/fetch states whenever the key changes.
     setOpenRouterKeyTest({ status: "idle" });
+    setOpenRouterModelsFetch({ status: "idle" });
+    setOpenRouterModelOptions([...defaultOpenRouterModels]);
   }, [settings.openRouterApiKey]);
 
   React.useEffect(() => {
@@ -233,18 +286,46 @@ export function SettingsDialog({
                       value={settings.llmModel}
                       onChange={(e) => setSettings({ ...settings, llmModel: e.target.value })}
                     >
-                      {!openRouterModels.includes(settings.llmModel as (typeof openRouterModels)[number]) ? (
+                      {!openRouterModelOptions.includes(settings.llmModel) ? (
                         <option value={settings.llmModel}>{settings.llmModel}</option>
                       ) : null}
-                      {openRouterModels.map((m) => (
+                      {openRouterModelOptions.map((m) => (
                         <option key={m} value={m}>
                           {m}
                         </option>
                       ))}
                     </select>
-                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                      This only saves your preference.
-                    </p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                        This only saves your preference.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        {openRouterModelsFetch.status !== "idle" ? (
+                          <span
+                            className="text-xs"
+                            style={{
+                              color:
+                                openRouterModelsFetch.status === "success"
+                                  ? `hsl(var(--primary))`
+                                  : openRouterModelsFetch.status === "error"
+                                    ? `hsl(var(--destructive))`
+                                    : `hsl(var(--muted-foreground))`,
+                            }}
+                          >
+                            {openRouterModelsFetch.message}
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="inline-flex h-9 items-center rounded-xl border border-border bg-transparent px-3 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                          onClick={fetchOpenRouterModels}
+                          disabled={openRouterModelsFetch.status === "fetching"}
+                        >
+                          {openRouterModelsFetch.status === "fetching" ? "Fetching…" : "Fetch models"}
+                        </button>
+                      </div>
+                    </div>
                   </label>
 
                   <div className="md:col-span-2">
