@@ -30,6 +30,12 @@ export type SettingsState = {
   ollamaBaseUrl: string;
 
   /**
+   * Context policy for runtime calls.
+   */
+  contextMode: "full" | "lastN";
+  contextLastN: number;
+
+  /**
    * Stored locally; used as a model preference and for BYOK OpenRouter calls.
    */
   llmProvider: "openrouter";

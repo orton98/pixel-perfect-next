@@ -17,7 +17,11 @@ export const defaultSettings: SettingsState = {
   aiRuntime: "disabled",
   ollamaBaseUrl: "http://localhost:11434",
 
-  // Legacy fields (still used for model preference + future upgrades)
+  // Context policy
+  contextMode: "lastN",
+  contextLastN: 20,
+
+  // Legacy fields (still used for model preference + BYOK OpenRouter)
   llmProvider: "openrouter",
   llmModel: "openai/gpt-4o-mini",
   openRouterApiKey: "",

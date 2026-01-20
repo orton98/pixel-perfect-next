@@ -259,6 +259,44 @@ export function SettingsDialog({
                   </label>
 
                   <label className="space-y-2">
+                    <span className="text-sm font-medium">Context</span>
+                    <select
+                      className="h-10 w-full rounded-xl border bg-transparent px-3"
+                      style={{ borderColor: `hsl(var(--border))` }}
+                      value={settings.contextMode}
+                      onChange={(e) => setSettings({ ...settings, contextMode: e.target.value as SettingsState["contextMode"] })}
+                    >
+                      <option value="lastN">Last N messages</option>
+                      <option value="full">Full chat history</option>
+                    </select>
+                    {settings.contextMode === "lastN" ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          className="h-10 w-full rounded-xl border bg-transparent px-3"
+                          style={{ borderColor: `hsl(var(--border))` }}
+                          type="number"
+                          min={1}
+                          max={200}
+                          value={settings.contextLastN}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              contextLastN: Math.max(1, Math.min(200, Number(e.target.value || 20))),
+                            })
+                          }
+                        />
+                        <span className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                          msgs
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                        Sends the entire conversation each time.
+                      </p>
+                    )}
+                  </label>
+
+                  <label className="space-y-2">
                     <span className="text-sm font-medium">Model</span>
                     <input
                       className="h-10 w-full rounded-xl border bg-transparent px-3"

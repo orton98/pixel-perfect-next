@@ -20,7 +20,7 @@ import {
 import { Modal } from "./ai-studio/Modal";
 import { useLocalStorageState } from "./ai-studio/utils";
 import { runLocalMigrations } from "./ai-studio/migrations";
-import { sendRuntimeChat } from "./ai-studio/aiRuntime";
+import { streamRuntimeChat } from "./ai-studio/aiRuntime";
 import { SparkMark } from "./ai-studio/SparkMark";
 import { ChatThread } from "./ai-studio/ChatThread";
 import { PromptComposer } from "./ai-studio/PromptComposer";
@@ -52,6 +52,8 @@ export default function AIStudio() {
 
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [isStreaming, setIsStreaming] = React.useState(false);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   // Sessions: persisted locally (no demo/seeded chats)
   const [sessions, setSessions] = useLocalStorageState<Session[]>(STORAGE_SESSIONS, [createEmptySession()]);
@@ -153,6 +155,10 @@ export default function AIStudio() {
     const trimmed = text.trim();
     if (!trimmed || !activeSession) return;
 
+    // Stop any previous in-flight generation.
+    abortRef.current?.abort();
+    abortRef.current = null;
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -167,7 +173,7 @@ export default function AIStudio() {
     const placeholder: ChatMessage = {
       id: assistantId,
       role: "assistant",
-      content: settings.aiRuntime === "disabled" ? "Got it." : "Thinking…",
+      content: settings.aiRuntime === "disabled" ? "Got it." : "",
       createdAt: Date.now() + 1,
     };
 
@@ -206,40 +212,54 @@ export default function AIStudio() {
       return;
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setIsStreaming(true);
+
+    const history = [...(activeSession.messages ?? []), userMsg];
+    const contextCount = Math.max(1, Math.min(200, Number(settings.contextLastN || 20)));
+    const contextMessages =
+      settings.contextMode === "full" ? history : history.slice(Math.max(0, history.length - contextCount));
+
+    // (MVP) runtime calls ignore tool/webhook settings; those are for future wiring.
     (async () => {
+      let soFar = "";
       try {
-        const responseText = await sendRuntimeChat({
+        await streamRuntimeChat({
           runtime: settings.aiRuntime,
           model: settings.llmModel,
           ollamaBaseUrl: settings.ollamaBaseUrl,
           openRouterApiKey: settings.openRouterApiKey,
-          messages: [{ role: "user", content: trimmed }],
+          messages: contextMessages.map((m) => ({ role: m.role, content: m.content })),
+          signal: controller.signal,
+          onDelta: (chunk) => {
+            soFar += chunk;
+            setSessions((prev) =>
+              prev.map((s) => {
+                if (s.id !== activeSession.id) return s;
+                return {
+                  ...s,
+                  messages: s.messages.map((m) => (m.id === assistantId ? { ...m, content: soFar } : m)),
+                };
+              }),
+            );
+          },
         });
-
-        setSessions((prev) =>
-          prev.map((s) => {
-            if (s.id !== activeSession.id) return s;
-            return {
-              ...s,
-              messages: s.messages.map((m) => (m.id === assistantId ? { ...m, content: responseText } : m)),
-            };
-          }),
-        );
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Request failed.";
+        const final = controller.signal.aborted ? (soFar.trim() ? soFar : "Stopped.") : `Error: ${msg}`;
         setSessions((prev) =>
           prev.map((s) => {
             if (s.id !== activeSession.id) return s;
             return {
               ...s,
-              messages: s.messages.map((m) =>
-                m.id === assistantId
-                  ? { ...m, content: `Error: ${msg}\n\nTip: for Ollama, verify it’s running at ${settings.ollamaBaseUrl}.` }
-                  : m,
-              ),
+              messages: s.messages.map((m) => (m.id === assistantId ? { ...m, content: final } : m)),
             };
           }),
         );
+      } finally {
+        setIsStreaming(false);
+        if (abortRef.current === controller) abortRef.current = null;
       }
     })();
   };
@@ -364,33 +384,45 @@ export default function AIStudio() {
       </aside>
 
       {/* Top header (only when sidebar is closed) */}
-      {!sidebarOpen ? (
-        <div className="fixed left-4 top-4 z-30 flex items-center gap-3">
-          <div className="grid size-7 place-items-center text-primary">
-            <SparkMark />
-          </div>
+       {!sidebarOpen ? (
+         <div className="fixed left-4 top-4 z-30 flex items-center gap-3">
+           <div className="grid size-7 place-items-center text-primary">
+             <SparkMark />
+           </div>
 
-          <div className="flex items-center gap-1 rounded-xl bg-accent p-1">
-            <button
-              className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Toggle sidebar"
-              type="button"
-            >
-              <PanelLeftOpen className="size-4" aria-hidden="true" />
-            </button>
+           <div className="flex items-center gap-1 rounded-xl bg-accent p-1">
+             <button
+               className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
+               onClick={() => setSidebarOpen(true)}
+               aria-label="Toggle sidebar"
+               type="button"
+             >
+               <PanelLeftOpen className="size-4" aria-hidden="true" />
+             </button>
 
-            <button
-              className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
-              onClick={handleNewChat}
-              aria-label="New chat"
-              type="button"
-            >
-              <MessageSquarePlus className="size-4" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      ) : null}
+             <button
+               className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
+               onClick={handleNewChat}
+               aria-label="New chat"
+               type="button"
+             >
+               <MessageSquarePlus className="size-4" aria-hidden="true" />
+             </button>
+           </div>
+
+           <div className="hidden items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1 text-xs text-muted-foreground shadow-crisp sm:flex">
+             <span className="font-medium text-foreground">
+               {settings.aiRuntime === "disabled"
+                 ? "AI: Disabled"
+                 : settings.aiRuntime === "ollama"
+                   ? "AI: Ollama"
+                   : "AI: OpenRouter"}
+             </span>
+             <span className="h-3 w-px bg-border" aria-hidden="true" />
+             <span className="max-w-[220px] truncate">{settings.llmModel}</span>
+           </div>
+         </div>
+       ) : null}
 
       <main
         className={
@@ -409,7 +441,13 @@ export default function AIStudio() {
           ) : null}
 
           <div className={hasMessages ? "mt-auto" : ""}>
-            <PromptComposer presets={presets} compact={settings.compactMode} onSend={handleSend} />
+            <PromptComposer
+              presets={presets}
+              compact={settings.compactMode}
+              onSend={handleSend}
+              isStreaming={isStreaming}
+              onStop={() => abortRef.current?.abort()}
+            />
           </div>
 
           {!hasMessages ? (
