@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { LucideIcon } from "lucide-react";
 
 import type { PresetItem } from "./types";
 import { PresetIconGlyph } from "./PresetIconGlyph";
@@ -7,11 +8,13 @@ export function Popover({
   label,
   value,
   items,
+  icon: Icon,
   onSelect,
 }: {
   label: string;
   value: PresetItem | null;
   items: PresetItem[];
+  icon?: LucideIcon;
   onSelect: (item: PresetItem) => void;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -57,7 +60,9 @@ export function Popover({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span className="font-medium">{value?.shortName ?? label}</span>
+        {Icon ? <Icon className="size-4 text-muted-foreground" aria-hidden="true" /> : null}
+        <span className="font-medium sm:inline hidden">{value?.shortName ?? label}</span>
+        <span className="font-medium sm:hidden inline">{value?.shortName?.slice(0, 1) ?? label.slice(0, 1)}</span>
       </button>
 
       {open ? (

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowUp, ImagePlus, Mic, Square, X } from "lucide-react";
+import { ArrowUp, Brain, ImagePlus, Mic, SlidersHorizontal, Sparkles, Square, Wrench, X } from "lucide-react";
 
 import type { PresetItem, Presets, SettingsState } from "./types";
 import { Popover } from "./Popover";
@@ -159,13 +159,13 @@ export function PromptComposer({
             </button>
 
             <div className="shrink-0">
-              <Popover label="Mindset" value={mindset} items={presets.mindset} onSelect={setMindset} />
+              <Popover label="Mindset" icon={Sparkles} value={mindset} items={presets.mindset} onSelect={setMindset} />
             </div>
             <div className="shrink-0">
-              <Popover label="Skillset" value={skillset} items={presets.skillset} onSelect={setSkillset} />
+              <Popover label="Skillset" icon={Brain} value={skillset} items={presets.skillset} onSelect={setSkillset} />
             </div>
             <div className="shrink-0">
-              <Popover label="Toolset" value={toolset} items={presets.toolset} onSelect={setToolset} />
+              <Popover label="Toolset" icon={Wrench} value={toolset} items={presets.toolset} onSelect={setToolset} />
             </div>
 
             {activeTags.length ? (

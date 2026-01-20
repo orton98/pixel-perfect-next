@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Cpu } from "lucide-react";
 
 import type { SettingsState } from "./types";
 import { STORAGE_OLLAMA_MODELS, STORAGE_OPENROUTER_MODELS } from "./storage";
@@ -91,7 +91,7 @@ export function ModelPicker({
         type="button"
         disabled={disabled}
         className={
-          "inline-flex h-9 max-w-[140px] items-center gap-2 rounded-full px-3 text-sm transition-colors hover:bg-accent disabled:opacity-50 sm:max-w-[220px] " +
+          "inline-flex h-9 max-w-[44px] items-center gap-2 rounded-full px-3 text-sm transition-colors hover:bg-accent disabled:opacity-50 sm:max-w-[220px] " +
           (value ? "text-foreground" : "text-muted-foreground")
         }
         onClick={() => setOpen((v) => !v)}
@@ -99,7 +99,8 @@ export function ModelPicker({
         aria-expanded={open}
         aria-label="Choose model"
       >
-        <span className="truncate font-medium">{label}</span>
+        <Cpu className="size-4 text-muted-foreground" aria-hidden="true" />
+        <span className="hidden truncate font-medium sm:inline">{label}</span>
         <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
       </button>
 
