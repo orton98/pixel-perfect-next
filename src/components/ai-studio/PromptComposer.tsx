@@ -1,18 +1,25 @@
 import * as React from "react";
 import { ArrowUp, ImagePlus, Mic, Square, X } from "lucide-react";
 
-import type { PresetItem, Presets } from "./types";
+import type { PresetItem, Presets, SettingsState } from "./types";
 import { Popover } from "./Popover";
+import { ModelPicker } from "./ModelPicker";
 
 export function PromptComposer({
   presets,
   compact,
+  aiRuntime,
+  llmModel,
+  onSelectModel,
   onSend,
   isStreaming,
   onStop,
 }: {
   presets: Presets;
   compact: boolean;
+  aiRuntime: SettingsState["aiRuntime"];
+  llmModel: string;
+  onSelectModel: (next: string) => void;
   onSend: (payload: {
     text: string;
     mindset: PresetItem | null;
@@ -189,6 +196,13 @@ export function PromptComposer({
               </button>
             ) : (
               <>
+                <ModelPicker
+                  runtime={aiRuntime}
+                  value={llmModel}
+                  disabled={aiRuntime === "disabled"}
+                  onChange={onSelectModel}
+                />
+
                 <button
                   type="button"
                   className="grid size-9 place-items-center rounded-full transition-colors hover:bg-accent"
