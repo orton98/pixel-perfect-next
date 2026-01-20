@@ -19,26 +19,23 @@ import {
 } from "./ai-studio/storage";
 import { Modal } from "./ai-studio/Modal";
 import { useLocalStorageState } from "./ai-studio/utils";
+import { runLocalMigrations } from "./ai-studio/migrations";
 import { SparkMark } from "./ai-studio/SparkMark";
 import { ChatThread } from "./ai-studio/ChatThread";
 import { PromptComposer } from "./ai-studio/PromptComposer";
 import { SettingsDialog } from "./ai-studio/SettingsDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
-function seedDemoSessions(): Session[] {
-  const createSession = (title: string): Session => ({
+runLocalMigrations();
+
+function createEmptySession(title = "New chat"): Session {
+  return {
     id: crypto.randomUUID(),
     title,
     createdAt: Date.now(),
     pinned: false,
     messages: [],
-  });
-
-  return [
-    createSession("Work…"),
-    { ...createSession("Design critique"), createdAt: Date.now() - 1000 * 60 * 60 * 24 * 10 },
-    { ...createSession("Research plan"), createdAt: Date.now() - 1000 * 60 * 60 * 24 * 25 },
-  ];
+  };
 }
 
 export default function AIStudio() {
@@ -55,16 +52,16 @@ export default function AIStudio() {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
-  // Sessions: persisted (migrates from seeded demo sessions on first run)
-  const [sessions, setSessions] = useLocalStorageState<Session[]>(STORAGE_SESSIONS, seedDemoSessions());
+  // Sessions: persisted locally (no demo/seeded chats)
+  const [sessions, setSessions] = useLocalStorageState<Session[]>(STORAGE_SESSIONS, [createEmptySession()]);
   const [activeId, setActiveId] = useLocalStorageState<string>(STORAGE_ACTIVE_SESSION, sessions[0]?.id ?? "");
 
-  // Keep activeId valid
+  // Keep activeId valid + ensure at least one session exists.
   React.useEffect(() => {
     if (!sessions.length) {
-      const seeded = seedDemoSessions();
-      setSessions(seeded);
-      setActiveId(seeded[0].id);
+      const fresh = [createEmptySession()];
+      setSessions(fresh);
+      setActiveId(fresh[0].id);
       return;
     }
 
@@ -129,7 +126,7 @@ export default function AIStudio() {
       const next = prev.filter((s) => s.id !== deleting);
 
       // Ensure we always have at least one session.
-      const ensured = next.length ? next : seedDemoSessions();
+      const ensured = next.length ? next : [createEmptySession()];
 
       // If we deleted the active session, move active to the first remaining.
       setActiveId((prevActive) => (prevActive === deleting ? ensured[0].id : prevActive));
@@ -169,7 +166,7 @@ export default function AIStudio() {
       id: crypto.randomUUID(),
       role: "assistant",
       content:
-        "Got it. (Single-file UI demo)" +
+        "Got it. (UI-only local build)" +
         (webhookSummary ? `\n\nSelected: ${webhookSummary}` : "") +
         "\n\nNext: wire sending to n8n webhooks.",
       createdAt: Date.now() + 1,
@@ -371,6 +368,10 @@ export default function AIStudio() {
         setSettings={setSettings}
         presets={presets}
         setPresets={setPresets}
+        sessions={sessions}
+        setSessions={setSessions}
+        activeSessionId={activeId}
+        setActiveSessionId={setActiveId}
       />
 
       {/* Rename dialog */}

@@ -1,8 +1,16 @@
 import * as React from "react";
 
-import type { Presets, SettingsState } from "./types";
+import type { Presets, Session, SettingsState } from "./types";
 import { Modal } from "./Modal";
 import { PresetEditor } from "./PresetEditor";
+import { defaultPresets, defaultSettings, STORAGE_OPENROUTER_MODELS } from "./storage";
+import {
+  applyImportedLocalData,
+  buildLocalExportPayload,
+  exportLocalData,
+  parseAndValidateImportPayload,
+  resetLocalData,
+} from "./dataPortability";
 
 export function SettingsDialog({
   open,
@@ -11,6 +19,10 @@ export function SettingsDialog({
   setSettings,
   presets,
   setPresets,
+  sessions,
+  setSessions,
+  activeSessionId,
+  setActiveSessionId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -18,10 +30,14 @@ export function SettingsDialog({
   setSettings: (next: SettingsState) => void;
   presets: Presets;
   setPresets: (next: Presets) => void;
+  sessions: Session[];
+  setSessions: (updater: Session[] | ((prev: Session[]) => Session[])) => void;
+  activeSessionId: string;
+  setActiveSessionId: (next: string) => void;
 }) {
   const sections = [
     { id: "general", label: "General" },
-    { id: "ai", label: "AI" },
+    { id: "ai", label: "AI (Coming soon)" },
     { id: "profile", label: "Profile" },
     { id: "mindset", label: "Mindset" },
     { id: "skillset", label: "Skillset" },
@@ -31,13 +47,6 @@ export function SettingsDialog({
   ] as const;
 
   const [section, setSection] = React.useState<(typeof sections)[number]["id"]>("general");
-
-  const [revealOpenRouterKey, setRevealOpenRouterKey] = React.useState(false);
-  const [openRouterKeyTest, setOpenRouterKeyTest] = React.useState<
-    { status: "idle" | "testing" | "success" | "error"; message?: string }
-  >({ status: "idle" });
-
-  const STORAGE_OPENROUTER_MODELS = "ai_studio_openrouter_models_cache_v1";
 
   const defaultOpenRouterModels = [
     "openai/gpt-4o-mini",
@@ -50,7 +59,7 @@ export function SettingsDialog({
 
   const [openRouterModelQuery, setOpenRouterModelQuery] = React.useState("");
 
-  const [openRouterModelOptions, setOpenRouterModelOptions] = React.useState<string[]>(() => {
+  const [openRouterModelOptions] = React.useState<string[]>(() => {
     const fallback = [...defaultOpenRouterModels] as string[];
     try {
       const raw = localStorage.getItem(STORAGE_OPENROUTER_MODELS);
@@ -63,113 +72,16 @@ export function SettingsDialog({
     }
   });
 
-  const [openRouterModelsFetch, setOpenRouterModelsFetch] = React.useState<
-    { status: "idle" | "fetching" | "success" | "error"; message?: string }
-  >({ status: "idle" });
-
-  const testOpenRouterKey = async () => {
-    const key = settings.openRouterApiKey.trim();
-    if (!key) {
-      setOpenRouterKeyTest({ status: "error", message: "Paste a key first." });
-      return;
-    }
-
-    setOpenRouterKeyTest({ status: "testing", message: "Testing…" });
-    try {
-      const resp = await fetch("https://openrouter.ai/api/v1/auth/key", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${key}`,
-        },
-      });
-
-      if (!resp.ok) {
-        setOpenRouterKeyTest({
-          status: "error",
-          message: resp.status === 401 ? "Invalid key." : `Request failed (${resp.status}).`,
-        });
-        return;
-      }
-
-      setOpenRouterKeyTest({ status: "success", message: "Key looks valid." });
-    } catch {
-      setOpenRouterKeyTest({ status: "error", message: "Network error." });
-    }
-  };
-
-  const fetchOpenRouterModels = async () => {
-    const key = settings.openRouterApiKey.trim();
-    if (!key) {
-      setOpenRouterModelsFetch({ status: "error", message: "Paste a key first." });
-      return;
-    }
-
-    setOpenRouterModelsFetch({ status: "fetching", message: "Fetching…" });
-
-    try {
-      const resp = await fetch("https://openrouter.ai/api/v1/models", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${key}`,
-        },
-      });
-
-      if (!resp.ok) {
-        setOpenRouterModelsFetch({
-          status: "error",
-          message: resp.status === 401 ? "Invalid key." : `Request failed (${resp.status}).`,
-        });
-        return;
-      }
-
-      const data = (await resp.json()) as { data?: Array<{ id?: string }> };
-      const ids = (data.data ?? [])
-        .map((m) => String(m.id || "").trim())
-        .filter(Boolean);
-
-      if (!ids.length) {
-        setOpenRouterModelsFetch({ status: "error", message: "No models returned." });
-        return;
-      }
-
-      // Deduplicate and keep things stable.
-      const unique = Array.from(new Set(ids));
-      setOpenRouterModelOptions(unique);
-
-      try {
-        localStorage.setItem(
-          STORAGE_OPENROUTER_MODELS,
-          JSON.stringify({ updatedAt: Date.now(), models: unique }),
-        );
-      } catch {
-        // Ignore quota / private mode errors.
-      }
-
-      setOpenRouterModelsFetch({ status: "success", message: `${unique.length} models loaded.` });
-
-      // If current selection isn't in the fetched list, keep it (it remains selectable via the special option below).
-    } catch {
-      setOpenRouterModelsFetch({ status: "error", message: "Network error." });
-    }
-  };
-
-  React.useEffect(() => {
-    // Auto-hide the key when switching sections.
-    setRevealOpenRouterKey(false);
-  }, [section]);
-
-  React.useEffect(() => {
-    // Reset test/fetch states whenever the key changes.
-    // (Model list is cached independently in localStorage.)
-    setOpenRouterKeyTest({ status: "idle" });
-    setOpenRouterModelsFetch({ status: "idle" });
-  }, [settings.openRouterApiKey]);
-
   const filteredOpenRouterModels = React.useMemo(() => {
     const q = openRouterModelQuery.trim().toLowerCase();
     if (!q) return openRouterModelOptions;
     return openRouterModelOptions.filter((m) => m.toLowerCase().includes(q));
   }, [openRouterModelOptions, openRouterModelQuery]);
+
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [importStatus, setImportStatus] = React.useState<{ status: "idle" | "success" | "error"; message?: string }>({
+    status: "idle",
+  });
 
   React.useEffect(() => {
     if (!open) setSection("general");
@@ -182,7 +94,7 @@ export function SettingsDialog({
       title="Settings"
       footer={
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Changes are saved locally in this demo.</p>
+          <p className="text-sm text-muted-foreground">Changes are saved locally on this device.</p>
           <button
             type="button"
             className="inline-flex items-center rounded-full border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
@@ -289,7 +201,7 @@ export function SettingsDialog({
               <div className="space-y-1">
                 <h3 className="text-base font-semibold">AI</h3>
                 <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
-                  Provider & model (MVP: selection only)
+                  Coming soon: this open-source local build does not call any model providers.
                 </p>
               </div>
 
@@ -297,24 +209,16 @@ export function SettingsDialog({
                 className="rounded-2xl border p-4"
                 style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
               >
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <label className="space-y-2">
-                    <span className="text-sm font-medium">Provider</span>
-                    <select
-                      className="h-10 w-full rounded-xl border bg-transparent px-3"
-                      style={{ borderColor: `hsl(var(--border))` }}
-                      value={settings.llmProvider}
-                      onChange={() => setSettings({ ...settings, llmProvider: "openrouter" })}
-                    >
-                      <option value="openrouter">OpenRouter</option>
-                    </select>
-                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                      MVP: preferences only.
+                <div className="space-y-4">
+                  <div className="rounded-xl border px-4 py-3" style={{ borderColor: `hsl(var(--border))` }}>
+                    <p className="text-sm font-medium">Provider integrations</p>
+                    <p className="mt-1 text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      API keys and live model calls are intentionally disabled in the UI-only version.
                     </p>
-                  </label>
+                  </div>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-medium">Model</span>
+                    <span className="text-sm font-medium">Preferred model (saved locally)</span>
 
                     <input
                       className="h-10 w-full rounded-xl border bg-transparent px-3"
@@ -347,93 +251,10 @@ export function SettingsDialog({
                       )}
                     </select>
 
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                        This only saves your preference.
-                      </p>
-                      <div className="flex items-center gap-3">
-                        {openRouterModelsFetch.status !== "idle" ? (
-                          <span
-                            className="text-xs"
-                            style={{
-                              color:
-                                openRouterModelsFetch.status === "success"
-                                  ? `hsl(var(--primary))`
-                                  : openRouterModelsFetch.status === "error"
-                                    ? `hsl(var(--destructive))`
-                                    : `hsl(var(--muted-foreground))`,
-                            }}
-                          >
-                            {openRouterModelsFetch.message}
-                          </span>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="inline-flex h-9 items-center rounded-xl border border-border bg-transparent px-3 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-                          onClick={fetchOpenRouterModels}
-                          disabled={openRouterModelsFetch.status === "fetching"}
-                        >
-                          {openRouterModelsFetch.status === "fetching" ? "Fetching…" : "Fetch models"}
-                        </button>
-                      </div>
-                    </div>
+                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      This is only a preference for future upgrades.
+                    </p>
                   </label>
-
-                  <div className="md:col-span-2">
-                    <label className="space-y-2">
-                      <span className="text-sm font-medium">OpenRouter API key</span>
-                      <div className="flex gap-2">
-                        <input
-                          className="h-10 w-full rounded-xl border bg-transparent px-3"
-                          style={{ borderColor: `hsl(var(--border))` }}
-                          type={revealOpenRouterKey ? "text" : "password"}
-                          value={settings.openRouterApiKey}
-                          onChange={(e) => setSettings({ ...settings, openRouterApiKey: e.target.value })}
-                          placeholder="sk-or-…"
-                          autoComplete="off"
-                          spellCheck={false}
-                        />
-                        <button
-                          type="button"
-                          className="inline-flex h-10 shrink-0 items-center rounded-xl border border-border bg-transparent px-3 text-sm text-foreground transition-colors hover:bg-accent"
-                          onClick={() => setRevealOpenRouterKey((v) => !v)}
-                        >
-                          {revealOpenRouterKey ? "Hide" : "Show"}
-                        </button>
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                          Not secure in MVP: stored in localStorage on this device.
-                        </p>
-                        <div className="flex items-center gap-3">
-                          {openRouterKeyTest.status !== "idle" ? (
-                            <span
-                              className="text-xs"
-                              style={{
-                                color:
-                                  openRouterKeyTest.status === "success"
-                                    ? `hsl(var(--primary))`
-                                    : openRouterKeyTest.status === "error"
-                                      ? `hsl(var(--destructive))`
-                                      : `hsl(var(--muted-foreground))`,
-                              }}
-                            >
-                              {openRouterKeyTest.message}
-                            </span>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="inline-flex h-9 items-center rounded-xl border border-border bg-transparent px-3 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-                            onClick={testOpenRouterKey}
-                            disabled={openRouterKeyTest.status === "testing"}
-                          >
-                            {openRouterKeyTest.status === "testing" ? "Testing…" : "Test key"}
-                          </button>
-                        </div>
-                      </div>
-                    </label>
-                  </div>
                 </div>
               </div>
             </div>
@@ -500,16 +321,140 @@ export function SettingsDialog({
               <div className="space-y-1">
                 <h3 className="text-base font-semibold">Data</h3>
                 <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
-                  Sharing & exports
+                  Export, import, and reset (local-only).
                 </p>
               </div>
+
               <div
                 className="rounded-2xl border p-4"
                 style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
               >
-                <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
-                  This single-file demo stores settings and presets in localStorage.
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Export data</p>
+                    <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      Downloads a JSON backup of chats, presets, and settings.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                    onClick={() => {
+                      const payload = buildLocalExportPayload({
+                        settings,
+                        presets,
+                        sessions,
+                        activeSessionId,
+                      });
+                      exportLocalData(payload);
+                    }}
+                  >
+                    Export JSON
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className="rounded-2xl border p-4"
+                style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Import data</p>
+                    <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      Replaces your current local data with the imported backup.
+                    </p>
+                    {importStatus.status !== "idle" ? (
+                      <p
+                        className="mt-2 text-sm"
+                        style={{
+                          color:
+                            importStatus.status === "success"
+                              ? `hsl(var(--primary))`
+                              : `hsl(var(--destructive))`,
+                        }}
+                      >
+                        {importStatus.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="application/json"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const text = await file.text();
+                          const payload = parseAndValidateImportPayload(text);
+                          applyImportedLocalData(payload);
+
+                          // Update in-memory state to match.
+                          setSettings(payload.settings);
+                          setPresets(payload.presets);
+                          setSessions(payload.sessions);
+                          setActiveSessionId(payload.activeSessionId || payload.sessions[0]?.id || "");
+
+                          setImportStatus({ status: "success", message: "Import complete." });
+                          // Close the dialog to avoid confusing state.
+                        } catch {
+                          setImportStatus({ status: "error", message: "Invalid file format." });
+                        } finally {
+                          // allow importing same file twice
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                      onClick={() => {
+                        setImportStatus({ status: "idle" });
+                        fileInputRef.current?.click();
+                      }}
+                    >
+                      Choose file
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="rounded-2xl border p-4"
+                style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Danger zone</p>
+                    <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      Clears all local chats, presets, and settings on this device.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-transparent px-4 text-sm font-medium transition-colors hover:bg-accent"
+                    style={{ color: `hsl(var(--destructive))` }}
+                    onClick={() => {
+                      const ok = window.confirm("Reset all local AI Studio data on this device?");
+                      if (!ok) return;
+
+                      resetLocalData();
+                      setSettings(defaultSettings);
+                      setPresets(defaultPresets);
+                      setSessions([]);
+                      setActiveSessionId("");
+                      setImportStatus({ status: "idle" });
+                      onClose();
+                    }}
+                  >
+                    Reset local data
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
