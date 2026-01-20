@@ -9,6 +9,9 @@ export const defaultSettings: SettingsState = {
   compactMode: false,
   showTimestamps: false,
   sidebarAutoCloseMobile: true,
+
+  llmProvider: "openrouter",
+  llmModel: "openai/gpt-4o-mini",
 };
 
 export const defaultPresets: Presets = {
