@@ -410,17 +410,6 @@ export default function AIStudio() {
              </button>
            </div>
 
-           <div className="hidden items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1 text-xs text-muted-foreground shadow-crisp sm:flex">
-             <span className="font-medium text-foreground">
-               {settings.aiRuntime === "disabled"
-                 ? "AI: Disabled"
-                 : settings.aiRuntime === "ollama"
-                   ? "AI: Ollama"
-                   : "AI: OpenRouter"}
-             </span>
-             <span className="h-3 w-px bg-border" aria-hidden="true" />
-             <span className="max-w-[220px] truncate">{settings.llmModel}</span>
-           </div>
          </div>
        ) : null}
 
@@ -547,6 +536,9 @@ export default function AIStudio() {
             <PromptComposer
               presets={presets}
               compact={settings.compactMode}
+              aiRuntime={settings.aiRuntime}
+              llmModel={settings.llmModel}
+              onSelectModel={(next) => setSettings({ ...settings, llmModel: next })}
               onSend={handleSend}
               isStreaming={isStreaming}
               onStop={() => abortRef.current?.abort()}
