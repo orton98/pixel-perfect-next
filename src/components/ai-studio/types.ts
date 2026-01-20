@@ -21,15 +21,22 @@ export type SettingsState = {
   sidebarAutoCloseMobile: boolean;
 
   /**
-   * MVP (UI-only): stored locally; not used to call any API yet.
-   * When we add a backend later, this becomes the source of truth for provider/model.
+   * Local-first MVP: choose how (or whether) the UI talks to a model runtime.
+   * - disabled: no model calls
+   * - ollama: http://localhost:11434
+   * - openrouter_byok: user-provided key (local/dev only)
+   */
+  aiRuntime: "disabled" | "ollama" | "openrouter_byok";
+  ollamaBaseUrl: string;
+
+  /**
+   * Stored locally; used as a model preference and for BYOK OpenRouter calls.
    */
   llmProvider: "openrouter";
   llmModel: string;
 
   /**
-   * MVP (NOT secure): stored in localStorage on this device.
-   * Replace with secure secret storage once a backend is enabled.
+   * Local/dev only: stored in localStorage on this device.
    */
   openRouterApiKey: string;
 };
