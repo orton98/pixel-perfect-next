@@ -109,12 +109,17 @@ export function ModelPicker({
 
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerContent className="border-border bg-background">
+          <DrawerContent className="rounded-t-[28px] border-border bg-popover">
             <DrawerHeader className="text-left">
               <DrawerTitle>Model</DrawerTitle>
               <p className="text-sm text-muted-foreground">
-                {runtime === "ollama" ? "Uses your local Ollama model list." : "Uses cached OpenRouter models (if available)."}
+                {runtime === "ollama" ? "Choose from your local Ollama models." : "Choose from cached OpenRouter models."}
               </p>
+              {value?.trim() ? (
+                <p className="text-xs text-muted-foreground">
+                  Current: <span className="font-medium text-foreground">{value}</span>
+                </p>
+              ) : null}
             </DrawerHeader>
 
             <div className="px-4 pb-3">
@@ -129,25 +134,31 @@ export function ModelPicker({
             </div>
 
             <div className="custom-scrollbar max-h-[50vh] space-y-1 overflow-auto px-2 pb-6">
-              {filtered.length ? (
-                filtered.map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    className={
-                      "flex w-full items-center gap-2 rounded-xl px-3 py-3 text-left text-sm transition-colors hover:bg-accent " +
-                      (m === value ? "bg-accent" : "")
-                    }
-                    onClick={() => {
-                      onChange(m);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{m}</span>
-                  </button>
-                ))
+              {options.length ? (
+                filtered.length ? (
+                  filtered.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className={
+                        "flex w-full items-center gap-2 rounded-xl px-3 py-3 text-left text-sm transition-colors hover:bg-accent " +
+                        (m === value ? "bg-accent" : "")
+                      }
+                      onClick={() => {
+                        onChange(m);
+                        setOpen(false);
+                      }}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{m}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+                )
               ) : (
-                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  No models yet. Open <span className="text-foreground">Settings → AI</span> and fetch models.
+                </div>
               )}
             </div>
           </DrawerContent>
