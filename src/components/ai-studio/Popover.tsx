@@ -32,7 +32,7 @@ export function Popover({
     if (!open) return;
     if (isMobile) return; // mobile uses bottom sheet
 
-    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+    const onPointerDown = (e: PointerEvent) => {
       const root = rootRef.current;
       if (!root) return;
       const target = e.target as Node | null;
@@ -47,13 +47,11 @@ export function Popover({
       }
     };
 
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown, { passive: true });
+    document.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isMobile, open]);
