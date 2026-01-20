@@ -60,8 +60,12 @@ export default {
       },
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
+      },
+      boxShadow: {
+        elev: "0 2px 8px rgba(0,0,0,0.2)",
+        crisp: "0 4px 16px rgba(0,0,0,0.3)",
       },
       keyframes: {
         "accordion-down": {
@@ -89,3 +93,4 @@ export default {
   },
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;
+
