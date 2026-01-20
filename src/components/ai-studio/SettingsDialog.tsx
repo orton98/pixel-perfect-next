@@ -32,6 +32,8 @@ export function SettingsDialog({
 
   const [section, setSection] = React.useState<(typeof sections)[number]["id"]>("general");
 
+  const [revealOpenRouterKey, setRevealOpenRouterKey] = React.useState(false);
+
   const openRouterModels = [
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
@@ -40,6 +42,11 @@ export function SettingsDialog({
     "google/gemini-2.0-flash",
     "meta-llama/llama-3.1-70b-instruct",
   ] as const;
+
+  React.useEffect(() => {
+    // Auto-hide the key when switching sections.
+    setRevealOpenRouterKey(false);
+  }, [section]);
 
   React.useEffect(() => {
     if (!open) setSection("general");
@@ -176,7 +183,7 @@ export function SettingsDialog({
                       <option value="openrouter">OpenRouter</option>
                     </select>
                     <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                      We’ll add secure key storage + real requests later.
+                      MVP: preferences only.
                     </p>
                   </label>
 
@@ -198,9 +205,37 @@ export function SettingsDialog({
                       ))}
                     </select>
                     <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                      This only saves your preference (no API calls in MVP).
+                      This only saves your preference.
                     </p>
                   </label>
+
+                  <div className="md:col-span-2">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium">OpenRouter API key</span>
+                      <div className="flex gap-2">
+                        <input
+                          className="h-10 w-full rounded-xl border bg-transparent px-3"
+                          style={{ borderColor: `hsl(var(--border))` }}
+                          type={revealOpenRouterKey ? "text" : "password"}
+                          value={settings.openRouterApiKey}
+                          onChange={(e) => setSettings({ ...settings, openRouterApiKey: e.target.value })}
+                          placeholder="sk-or-…"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                        <button
+                          type="button"
+                          className="inline-flex h-10 shrink-0 items-center rounded-xl border border-border bg-transparent px-3 text-sm text-foreground transition-colors hover:bg-accent"
+                          onClick={() => setRevealOpenRouterKey((v) => !v)}
+                        >
+                          {revealOpenRouterKey ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                        Not secure in MVP: stored in localStorage on this device. We’ll move it to secure secrets when we add a backend.
+                      </p>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

@@ -12,6 +12,7 @@ export const defaultSettings: SettingsState = {
 
   llmProvider: "openrouter",
   llmModel: "openai/gpt-4o-mini",
+  openRouterApiKey: "",
 };
 
 export const defaultPresets: Presets = {

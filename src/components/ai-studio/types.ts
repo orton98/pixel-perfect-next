@@ -26,6 +26,12 @@ export type SettingsState = {
    */
   llmProvider: "openrouter";
   llmModel: string;
+
+  /**
+   * MVP (NOT secure): stored in localStorage on this device.
+   * Replace with secure secret storage once a backend is enabled.
+   */
+  openRouterApiKey: string;
 };
 
 export type ChatMessage = {
