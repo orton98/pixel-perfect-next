@@ -37,6 +37,8 @@ export function SettingsDialog({
     { status: "idle" | "testing" | "success" | "error"; message?: string }
   >({ status: "idle" });
 
+  const STORAGE_OPENROUTER_MODELS = "ai_studio_openrouter_models_cache_v1";
+
   const defaultOpenRouterModels = [
     "openai/gpt-4o-mini",
     "openai/gpt-4o",
@@ -46,7 +48,21 @@ export function SettingsDialog({
     "meta-llama/llama-3.1-70b-instruct",
   ] as const;
 
-  const [openRouterModelOptions, setOpenRouterModelOptions] = React.useState<string[]>([...defaultOpenRouterModels]);
+  const [openRouterModelQuery, setOpenRouterModelQuery] = React.useState("");
+
+  const [openRouterModelOptions, setOpenRouterModelOptions] = React.useState<string[]>(() => {
+    const fallback = [...defaultOpenRouterModels] as string[];
+    try {
+      const raw = localStorage.getItem(STORAGE_OPENROUTER_MODELS);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw) as { models?: unknown };
+      const models = Array.isArray(parsed.models) ? parsed.models.map((m) => String(m)) : [];
+      return models.length ? models : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+
   const [openRouterModelsFetch, setOpenRouterModelsFetch] = React.useState<
     { status: "idle" | "fetching" | "success" | "error"; message?: string }
   >({ status: "idle" });
@@ -119,6 +135,16 @@ export function SettingsDialog({
       // Deduplicate and keep things stable.
       const unique = Array.from(new Set(ids));
       setOpenRouterModelOptions(unique);
+
+      try {
+        localStorage.setItem(
+          STORAGE_OPENROUTER_MODELS,
+          JSON.stringify({ updatedAt: Date.now(), models: unique }),
+        );
+      } catch {
+        // Ignore quota / private mode errors.
+      }
+
       setOpenRouterModelsFetch({ status: "success", message: `${unique.length} models loaded.` });
 
       // If current selection isn't in the fetched list, keep it (it remains selectable via the special option below).
@@ -134,10 +160,16 @@ export function SettingsDialog({
 
   React.useEffect(() => {
     // Reset test/fetch states whenever the key changes.
+    // (Model list is cached independently in localStorage.)
     setOpenRouterKeyTest({ status: "idle" });
     setOpenRouterModelsFetch({ status: "idle" });
-    setOpenRouterModelOptions([...defaultOpenRouterModels]);
   }, [settings.openRouterApiKey]);
+
+  const filteredOpenRouterModels = React.useMemo(() => {
+    const q = openRouterModelQuery.trim().toLowerCase();
+    if (!q) return openRouterModelOptions;
+    return openRouterModelOptions.filter((m) => m.toLowerCase().includes(q));
+  }, [openRouterModelOptions, openRouterModelQuery]);
 
   React.useEffect(() => {
     if (!open) setSection("general");
@@ -280,6 +312,16 @@ export function SettingsDialog({
 
                   <label className="space-y-2">
                     <span className="text-sm font-medium">Model</span>
+
+                    <input
+                      className="h-10 w-full rounded-xl border bg-transparent px-3"
+                      style={{ borderColor: `hsl(var(--border))` }}
+                      value={openRouterModelQuery}
+                      onChange={(e) => setOpenRouterModelQuery(e.target.value)}
+                      placeholder="Search models…"
+                      autoComplete="off"
+                    />
+
                     <select
                       className="h-10 w-full rounded-xl border bg-transparent px-3"
                       style={{ borderColor: `hsl(var(--border))` }}
@@ -289,11 +331,17 @@ export function SettingsDialog({
                       {!openRouterModelOptions.includes(settings.llmModel) ? (
                         <option value={settings.llmModel}>{settings.llmModel}</option>
                       ) : null}
-                      {openRouterModelOptions.map((m) => (
-                        <option key={m} value={m}>
-                          {m}
+                      {filteredOpenRouterModels.length ? (
+                        filteredOpenRouterModels.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>
+                          No matches
                         </option>
-                      ))}
+                      )}
                     </select>
 
                     <div className="flex flex-wrap items-center justify-between gap-3">
