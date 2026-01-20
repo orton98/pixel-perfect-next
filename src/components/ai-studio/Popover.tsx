@@ -111,7 +111,7 @@ export function Popover({
 
       {tooltipOpen ? (
         <div
-          className="pointer-events-none absolute left-0 top-11 z-40 max-w-[240px] rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-elev"
+          className="pointer-events-none absolute left-0 bottom-11 z-40 max-w-[240px] rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-elev"
           role="status"
           aria-live="polite"
         >
@@ -160,7 +160,7 @@ export function Popover({
         </Drawer>
       ) : open ? (
         <div
-          className="absolute left-0 top-11 z-50 w-72 rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
+          className="absolute left-0 bottom-11 z-50 w-72 rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
           role="dialog"
         >
           <div className="px-2 pb-2 pt-1">
