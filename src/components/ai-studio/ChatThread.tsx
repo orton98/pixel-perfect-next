@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Bot, User } from "lucide-react";
+import { Bot, Copy, RotateCcw, User } from "lucide-react";
 
 import type { ChatMessage } from "./types";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -9,10 +9,16 @@ export function ChatThread({
   messages,
   compact,
   showTimestamps,
+  renderMarkdown,
+  canRegenerate,
+  onRegenerateLast,
 }: {
   messages: ChatMessage[];
   compact: boolean;
   showTimestamps: boolean;
+  renderMarkdown: boolean;
+  canRegenerate: boolean;
+  onRegenerateLast: () => void;
 }) {
   const endRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -24,10 +30,16 @@ export function ChatThread({
     <div className="h-full rounded-3xl border border-border bg-card/40 shadow-crisp">
       <div className="custom-scrollbar h-full overflow-auto p-4 sm:p-6">
         <div className="space-y-4">
-          {messages.map((m) => {
+          {messages.map((m, idx) => {
             const isUser = m.role === "user";
+            const isLast = idx === messages.length - 1;
+            const isLastAssistant = isLast && !isUser;
+
             return (
-              <div key={m.id} className={"flex gap-3 " + (isUser ? "justify-end" : "justify-start")}>
+              <div
+                key={m.id}
+                className={"group/message flex gap-3 " + (isUser ? "justify-end" : "justify-start")}
+              >
                 {!isUser ? (
                   <div
                     className={
@@ -43,13 +55,50 @@ export function ChatThread({
                 <div className="max-w-[78%]">
                   <div
                     className={
-                      "rounded-3xl border border-border text-sm leading-relaxed shadow-crisp " +
+                      "relative rounded-3xl border border-border text-sm leading-relaxed shadow-crisp " +
                       (compact ? "px-3 py-2 " : "px-4 py-3 ") +
                       (isUser ? "bg-primary/10" : "bg-background/30")
                     }
                   >
-                    {isUser ? m.content : <MarkdownMessage content={m.content} />}
+                    {!isUser ? (
+                      <div className="absolute right-2 top-2 hidden items-center gap-1 group-hover/message:flex">
+                        <button
+                          type="button"
+                          className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          aria-label="Copy message"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(m.content);
+                            } catch {
+                              // ignore
+                            }
+                          }}
+                        >
+                          <Copy className="size-4" aria-hidden="true" />
+                        </button>
+
+                        {canRegenerate && isLastAssistant ? (
+                          <button
+                            type="button"
+                            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            aria-label="Regenerate last reply"
+                            onClick={onRegenerateLast}
+                          >
+                            <RotateCcw className="size-4" aria-hidden="true" />
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {isUser ? (
+                      m.content
+                    ) : renderMarkdown ? (
+                      <MarkdownMessage content={m.content} />
+                    ) : (
+                      <div className="whitespace-pre-wrap">{m.content}</div>
+                    )}
                   </div>
+
                   {showTimestamps ? (
                     <div
                       className={"pt-1 text-[11px] text-muted-foreground " + (isUser ? "text-right" : "text-left")}

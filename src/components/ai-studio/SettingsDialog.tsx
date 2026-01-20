@@ -208,6 +208,23 @@ export function SettingsDialog({
                   style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.20)` }}
                 >
                   <div>
+                    <p className="text-sm font-medium">Render markdown in assistant replies</p>
+                    <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      Enable tables, task lists, and code blocks.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.renderMarkdown}
+                    onChange={(e) => setSettings({ ...settings, renderMarkdown: e.target.checked })}
+                  />
+                </label>
+
+                <label
+                  className="flex items-center justify-between gap-4 rounded-2xl border px-4 py-4"
+                  style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.20)` }}
+                >
+                  <div>
                     <p className="text-sm font-medium">Sidebar auto-close on mobile</p>
                     <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
                       Close sidebar after selecting a chat on small screens.

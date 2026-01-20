@@ -36,6 +36,11 @@ export type SettingsState = {
   contextLastN: number;
 
   /**
+   * Render assistant messages as markdown (tables, task lists, code).
+   */
+  renderMarkdown: boolean;
+
+  /**
    * Stored locally; used as a model preference and for BYOK OpenRouter calls.
    */
   llmProvider: "openrouter";
