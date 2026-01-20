@@ -117,7 +117,7 @@ export function Popover({
 
       {open ? (
         <div
-          className="absolute left-0 top-11 z-30 w-72 rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
+          className="absolute left-0 top-11 z-50 w-72 rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
           role="dialog"
         >
           <div className="px-2 pb-2 pt-1">
