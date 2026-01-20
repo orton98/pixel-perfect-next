@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Bot, Copy, RotateCcw, User } from "lucide-react";
+import { Copy, RotateCcw } from "lucide-react";
 
 import type { ChatMessage } from "./types";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -27,7 +27,7 @@ export function ChatThread({
   }, [messages.length]);
 
   return (
-    <div className="h-full rounded-3xl border border-border bg-card/40 shadow-crisp">
+    <div className="h-full">
       <div className="custom-scrollbar h-full overflow-auto p-4 sm:p-6">
         <div className="space-y-4">
           {messages.map((m, idx) => {
@@ -38,20 +38,8 @@ export function ChatThread({
             return (
               <div
                 key={m.id}
-                className={"group/message flex gap-3 " + (isUser ? "justify-end" : "justify-start")}
+                className={"group/message flex " + (isUser ? "justify-end" : "justify-start")}
               >
-                {!isUser ? (
-                  <div
-                    className={
-                      "grid shrink-0 place-items-center rounded-2xl border border-border bg-background/40 shadow-crisp " +
-                      (compact ? "size-8" : "size-9")
-                    }
-                    aria-hidden="true"
-                  >
-                    <Bot className="size-4 text-primary" aria-hidden="true" />
-                  </div>
-                ) : null}
-
                 <div className="max-w-[78%]">
                   <div
                     className={
@@ -108,17 +96,6 @@ export function ChatThread({
                   ) : null}
                 </div>
 
-                {isUser ? (
-                  <div
-                    className={
-                      "grid shrink-0 place-items-center rounded-2xl border border-border bg-background/40 shadow-crisp " +
-                      (compact ? "size-8" : "size-9")
-                    }
-                    aria-hidden="true"
-                  >
-                    <User className="size-4 text-foreground" aria-hidden="true" />
-                  </div>
-                ) : null}
               </div>
             );
           })}
