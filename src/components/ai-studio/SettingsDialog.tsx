@@ -193,15 +193,18 @@ export function SettingsDialog({
         </div>
       }
     >
-      <div className="grid min-h-[520px] grid-cols-1 md:grid-cols-[260px_1fr]">
-        <div className="border-b p-5 md:border-b-0 md:border-r" style={{ borderColor: `hsl(var(--border))` }}>
-          <nav className="space-y-2">
+      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[260px_1fr]">
+        <div
+          className="border-b p-4 sm:p-5 md:border-b-0 md:border-r"
+          style={{ borderColor: `hsl(var(--border))` }}
+        >
+          <nav className="custom-scrollbar flex gap-2 overflow-x-auto md:block md:space-y-2 md:overflow-visible">
             {sections.map((s) => {
               const active = s.id === section;
               return (
                 <button
                   key={s.id}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors"
+                  className="flex w-full shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors md:w-full"
                   style={{
                     background: active ? `hsl(var(--accent))` : "transparent",
                     boxShadow: active ? `0 0 0 2px hsl(var(--primary) / 0.35)` : "none",
@@ -216,7 +219,7 @@ export function SettingsDialog({
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="min-h-0 p-4 sm:p-6">
           {section === "general" ? (
             <div className="space-y-6">
               <div className="space-y-1">

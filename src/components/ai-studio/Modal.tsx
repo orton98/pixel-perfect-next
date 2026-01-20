@@ -92,18 +92,22 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center p-2 sm:p-4">
       <button className="modal-backdrop absolute inset-0" aria-label="Close dialog" onClick={onClose} />
       <div
         ref={dialogRef}
         tabIndex={-1}
-        className="relative w-full max-w-4xl rounded-3xl border p-0 shadow-elev"
-        style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--popover))` }}
+        className="relative flex w-full max-w-4xl flex-col rounded-2xl border p-0 shadow-elev sm:rounded-3xl"
+        style={{
+          borderColor: `hsl(var(--border))`,
+          background: `hsl(var(--popover))`,
+          maxHeight: "calc(100vh - 1rem)",
+        }}
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <div className="border-b px-6 py-5" style={{ borderColor: `hsl(var(--border))` }}>
+        <div className="border-b px-4 py-4 sm:px-6 sm:py-5" style={{ borderColor: `hsl(var(--border))` }}>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">{title}</h2>
             <button
@@ -117,9 +121,11 @@ export function Modal({
             </button>
           </div>
         </div>
-        <div className="p-6">{children}</div>
+
+        <div className="custom-scrollbar flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>
+
         {footer ? (
-          <div className="border-t px-6 py-4" style={{ borderColor: `hsl(var(--border))` }}>
+          <div className="border-t px-4 py-4 sm:px-6" style={{ borderColor: `hsl(var(--border))` }}>
             {footer}
           </div>
         ) : null}
