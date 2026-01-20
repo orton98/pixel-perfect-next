@@ -1,10 +1,13 @@
 import * as React from "react";
 import { Cpu } from "lucide-react";
 
-import type { SettingsState } from "./types";
-import { STORAGE_OLLAMA_MODELS, STORAGE_OPENROUTER_MODELS } from "./storage";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
+
+type AIRuntime = "disabled" | "ollama" | "openrouter_byok";
+
+const STORAGE_OLLAMA_MODELS = "ai_studio_ollama_models_cache_v1";
+const STORAGE_OPENROUTER_MODELS = "ai_studio_openrouter_models_cache_v1";
 
 const DEFAULT_OPENROUTER_MODELS = [
   "openai/gpt-4o-mini",
@@ -33,7 +36,7 @@ export function ModelPicker({
   disabled,
   onChange,
 }: {
-  runtime: SettingsState["aiRuntime"];
+  runtime: AIRuntime;
   value: string;
   disabled: boolean;
   onChange: (next: string) => void;
@@ -165,7 +168,7 @@ export function ModelPicker({
         </Drawer>
       ) : open ? (
         <div
-          className="absolute right-0 top-11 z-30 w-[320px] rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
+          className="absolute right-0 bottom-11 z-50 w-[320px] rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
           role="dialog"
         >
           <div className="px-2 pb-2 pt-1">
