@@ -3,6 +3,8 @@ import { ChevronDown, Cpu } from "lucide-react";
 
 import type { SettingsState } from "./types";
 import { STORAGE_OLLAMA_MODELS, STORAGE_OPENROUTER_MODELS } from "./storage";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 const DEFAULT_OPENROUTER_MODELS = [
   "openai/gpt-4o-mini",
@@ -36,6 +38,8 @@ export function ModelPicker({
   disabled: boolean;
   onChange: (next: string) => void;
 }) {
+  const isMobile = useMediaQuery("(max-width: 640px)");
+
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -57,6 +61,7 @@ export function ModelPicker({
 
   React.useEffect(() => {
     if (!open) return;
+    if (isMobile) return; // mobile uses bottom sheet
 
     const onPointerDown = (e: MouseEvent | TouchEvent) => {
       const root = rootRef.current;
@@ -81,7 +86,8 @@ export function ModelPicker({
       document.removeEventListener("touchstart", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [isMobile, open]);
+
 
   const label = value?.trim() || (runtime === "ollama" ? "Choose model" : "Model");
 
@@ -104,7 +110,52 @@ export function ModelPicker({
         <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
       </button>
 
-      {open ? (
+      {isMobile ? (
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerContent className="border-border bg-background">
+            <DrawerHeader className="text-left">
+              <DrawerTitle>Model</DrawerTitle>
+              <p className="text-sm text-muted-foreground">
+                {runtime === "ollama" ? "Uses your local Ollama model list." : "Uses cached OpenRouter models (if available)."}
+              </p>
+            </DrawerHeader>
+
+            <div className="px-4 pb-3">
+              <input
+                className="h-10 w-full rounded-xl border bg-transparent px-3 text-sm"
+                style={{ borderColor: `hsl(var(--border))` }}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search models…"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="custom-scrollbar max-h-[50vh] space-y-1 overflow-auto px-2 pb-6">
+              {filtered.length ? (
+                filtered.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={
+                      "flex w-full items-center gap-2 rounded-xl px-3 py-3 text-left text-sm transition-colors hover:bg-accent " +
+                      (m === value ? "bg-accent" : "")
+                    }
+                    onClick={() => {
+                      onChange(m);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{m}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : open ? (
         <div
           className="absolute right-0 top-11 z-30 w-[320px] rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
           role="dialog"

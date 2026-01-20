@@ -18,7 +18,10 @@ export function Popover({
   onSelect: (item: PresetItem) => void;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [tooltipOpen, setTooltipOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const longPressTimerRef = React.useRef<number | null>(null);
+  const suppressNextClickRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -34,6 +37,7 @@ export function Popover({
       if (e.key === "Escape") {
         e.preventDefault();
         setOpen(false);
+        setTooltipOpen(false);
       }
     };
 
@@ -48,22 +52,68 @@ export function Popover({
     };
   }, [open]);
 
+  React.useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+    };
+  }, []);
+
+
   return (
     <div ref={rootRef} className="relative">
       <button
         type="button"
         className={
-          "inline-flex h-9 items-center gap-2 rounded-full px-3 text-sm transition-colors hover:bg-accent " +
+          "inline-flex h-9 items-center gap-2 rounded-full px-2 text-sm transition-colors hover:bg-accent sm:px-3 " +
           (value ? "text-primary" : "text-foreground")
         }
-        onClick={() => setOpen((v) => !v)}
+        aria-label={value?.shortName ?? label}
+        onPointerDown={(e) => {
+          // Long-press (mobile) to preview full label without opening the menu.
+          // Only trigger on primary touch/pen pointers.
+          if (e.pointerType === "touch" || e.pointerType === "pen") {
+            if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = window.setTimeout(() => {
+              suppressNextClickRef.current = true;
+              setTooltipOpen(true);
+              window.setTimeout(() => setTooltipOpen(false), 1400);
+            }, 450);
+          }
+        }}
+        onPointerUp={() => {
+          if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }}
+        onPointerCancel={() => {
+          if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }}
+        onClick={() => {
+          if (suppressNextClickRef.current) {
+            suppressNextClickRef.current = false;
+            return;
+          }
+          setOpen((v) => !v);
+        }}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
         {Icon ? <Icon className="size-4 text-muted-foreground" aria-hidden="true" /> : null}
-        <span className="font-medium sm:inline hidden">{value?.shortName ?? label}</span>
-        <span className="font-medium sm:hidden inline">{value?.shortName?.slice(0, 1) ?? label.slice(0, 1)}</span>
+        <span className="hidden font-medium sm:inline">{value?.shortName ?? label}</span>
+        <span className="sr-only sm:hidden">{value?.shortName ?? label}</span>
       </button>
+
+      {tooltipOpen ? (
+        <div
+          className="pointer-events-none absolute left-0 top-11 z-40 max-w-[240px] rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-elev"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="font-medium">{value?.shortName ?? label}</span>
+          {value?.name ? <span className="ml-2 text-muted-foreground">{value.name}</span> : null}
+        </div>
+      ) : null}
+
 
       {open ? (
         <div
