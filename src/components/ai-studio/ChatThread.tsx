@@ -55,41 +55,11 @@ export function ChatThread({
                 <div className="max-w-[78%]">
                   <div
                     className={
-                      "relative rounded-3xl border border-border text-sm leading-relaxed shadow-crisp " +
+                      "rounded-3xl border border-border text-sm leading-relaxed shadow-crisp " +
                       (compact ? "px-3 py-2 " : "px-4 py-3 ") +
                       (isUser ? "bg-primary/10" : "bg-background/30")
                     }
                   >
-                    {!isUser ? (
-                      <div className="absolute right-2 top-2 hidden items-center gap-1 group-hover/message:flex">
-                        <button
-                          type="button"
-                          className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                          aria-label="Copy message"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(m.content);
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                        >
-                          <Copy className="size-4" aria-hidden="true" />
-                        </button>
-
-                        {canRegenerate && isLastAssistant ? (
-                          <button
-                            type="button"
-                            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                            aria-label="Regenerate last reply"
-                            onClick={onRegenerateLast}
-                          >
-                            <RotateCcw className="size-4" aria-hidden="true" />
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
-
                     {isUser ? (
                       m.content
                     ) : renderMarkdown ? (
@@ -98,6 +68,36 @@ export function ChatThread({
                       <div className="whitespace-pre-wrap">{m.content}</div>
                     )}
                   </div>
+
+                  {!isUser ? (
+                    <div className="mt-2 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover/message:opacity-100">
+                      <button
+                        type="button"
+                        className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        aria-label="Copy message"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(m.content);
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        <Copy className="size-4" aria-hidden="true" />
+                      </button>
+
+                      {canRegenerate && isLastAssistant ? (
+                        <button
+                          type="button"
+                          className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          aria-label="Regenerate last reply"
+                          onClick={onRegenerateLast}
+                        >
+                          <RotateCcw className="size-4" aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   {showTimestamps ? (
                     <div
