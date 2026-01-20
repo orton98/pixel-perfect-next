@@ -123,7 +123,7 @@ export function Popover({
 
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerContent className="rounded-t-[28px] border-border bg-popover">
+          <DrawerContent className="bottom-14 mb-2 rounded-2xl border-border bg-popover">
             <DrawerHeader className="text-left">
               <DrawerTitle>{label}</DrawerTitle>
               <p className="text-sm text-muted-foreground">Choose one — it becomes a tag.</p>
