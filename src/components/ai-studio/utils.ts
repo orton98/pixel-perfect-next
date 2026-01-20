@@ -3,7 +3,19 @@ import * as React from "react";
 export function safeParse<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback;
   try {
-    return { ...fallback, ...(JSON.parse(raw) as object) } as T;
+    const parsed = JSON.parse(raw) as unknown;
+
+    // Merge only when both fallback + parsed are plain objects.
+    // This keeps the original "partial override" behavior for settings/presets,
+    // while allowing arrays/primitives (e.g. sessions) to round-trip correctly.
+    const isPlainObject = (v: unknown) =>
+      typeof v === "object" && v !== null && !Array.isArray(v);
+
+    if (isPlainObject(fallback) && isPlainObject(parsed)) {
+      return { ...(fallback as object), ...(parsed as object) } as T;
+    }
+
+    return parsed as T;
   } catch {
     return fallback;
   }

@@ -2,6 +2,8 @@ import type { Presets, SettingsState } from "./types";
 
 export const STORAGE_SETTINGS = "ai_studio_settings_v1";
 export const STORAGE_PRESETS = "ai_studio_agent_presets_v1";
+export const STORAGE_SESSIONS = "ai_studio_sessions_v1";
+export const STORAGE_ACTIVE_SESSION = "ai_studio_active_session_v1";
 
 export const defaultSettings: SettingsState = {
   compactMode: false,
