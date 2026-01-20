@@ -1,25 +1,18 @@
 import * as React from "react";
-import { ArrowUp, Brain, ImagePlus, Mic, SlidersHorizontal, Sparkles, Square, Wrench, X } from "lucide-react";
+import { ArrowUp, ImagePlus, Mic, Square, X } from "lucide-react";
 
-import type { PresetItem, Presets, SettingsState } from "./types";
+import type { PresetItem, Presets } from "./types";
 import { Popover } from "./Popover";
-import { ModelPicker } from "./ModelPicker";
 
 export function PromptComposer({
   presets,
   compact,
-  aiRuntime,
-  llmModel,
-  onSelectModel,
   onSend,
   isStreaming,
   onStop,
 }: {
   presets: Presets;
   compact: boolean;
-  aiRuntime: SettingsState["aiRuntime"];
-  llmModel: string;
-  onSelectModel: (next: string) => void;
   onSend: (payload: {
     text: string;
     mindset: PresetItem | null;
@@ -148,50 +141,42 @@ export function PromptComposer({
         />
 
         <div className={"flex items-center px-1 " + (compact ? "gap-1 pb-0.5" : "gap-1 pb-1")}>
-          <div className="custom-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-            <button
-              type="button"
-              className="grid size-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-accent"
-              onClick={() => fileRef.current?.click()}
-              aria-label="Attach image"
-            >
-              <ImagePlus className="size-5" aria-hidden="true" />
-            </button>
+          <button
+            type="button"
+            className="grid size-9 place-items-center rounded-full transition-colors hover:bg-accent"
+            onClick={() => fileRef.current?.click()}
+            aria-label="Attach image"
+          >
+            <ImagePlus className="size-5" aria-hidden="true" />
+          </button>
 
-            <div className="shrink-0">
-              <Popover label="Mindset" icon={Sparkles} value={mindset} items={presets.mindset} onSelect={setMindset} />
-            </div>
-            <div className="shrink-0">
-              <Popover label="Skillset" icon={Brain} value={skillset} items={presets.skillset} onSelect={setSkillset} />
-            </div>
-            <div className="shrink-0">
-              <Popover label="Toolset" icon={Wrench} value={toolset} items={presets.toolset} onSelect={setToolset} />
-            </div>
+          <Popover label="Mindset" value={mindset} items={presets.mindset} onSelect={setMindset} />
+          <Popover label="Skillset" value={skillset} items={presets.skillset} onSelect={setSkillset} />
+          <Popover label="Toolset" value={toolset} items={presets.toolset} onSelect={setToolset} />
 
-            {activeTags.length ? (
-              <div className="hidden shrink-0 items-center gap-2 pl-1 sm:flex">
-                <span className="h-4 w-px bg-border" aria-hidden="true" />
-                {activeTags.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className="inline-flex h-8 items-center gap-2 rounded-full border border-border bg-background/40 px-3 text-sm text-primary shadow-crisp transition-colors hover:bg-accent"
-                    onClick={() => {
-                      if (t.id === "mindset") setMindset(null);
-                      if (t.id === "skillset") setSkillset(null);
-                      if (t.id === "toolset") setToolset(null);
-                    }}
-                    aria-label={`Remove ${t.id} tag`}
-                  >
-                    {t.label}
-                    <X className="size-3" aria-hidden="true" />
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          {activeTags.length ? (
+            <div className="hidden items-center gap-2 pl-1 sm:flex">
+              <span className="h-4 w-px bg-border" aria-hidden="true" />
+              {activeTags.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="inline-flex h-8 items-center gap-2 rounded-full border border-border bg-background/40 px-3 text-sm text-primary shadow-crisp transition-colors hover:bg-accent"
+                  onClick={() => {
+                    if (t.id === "mindset") setMindset(null);
+                    if (t.id === "skillset") setSkillset(null);
+                    if (t.id === "toolset") setToolset(null);
+                  }}
+                  aria-label={`Remove ${t.id} tag`}
+                >
+                  {t.label}
+                  <X className="size-3" aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex items-center gap-1">
             {isStreaming ? (
               <button
                 type="button"
@@ -204,13 +189,6 @@ export function PromptComposer({
               </button>
             ) : (
               <>
-                <ModelPicker
-                  runtime={aiRuntime}
-                  value={llmModel}
-                  disabled={aiRuntime === "disabled"}
-                  onChange={onSelectModel}
-                />
-
                 <button
                   type="button"
                   className="grid size-9 place-items-center rounded-full transition-colors hover:bg-accent"
