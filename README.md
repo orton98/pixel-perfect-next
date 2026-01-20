@@ -1,8 +1,12 @@
 # Welcome to your Lovable project
 
+<!-- Replace OWNER/REPO below after connecting this project to GitHub -->
+[![Deploy to GitHub Pages](https://github.com/OWNER/REPO/actions/workflows/deploy.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/deploy.yml)
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+
 
 ## How can I edit this code?
 
@@ -62,7 +66,19 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Option A (recommended): Publish from Lovable
+
+Open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click **Share → Publish**.
+
+### Option B: GitHub Pages (Vite + dist)
+
+1. Ensure this project is connected to GitHub (Lovable **Settings → Connectors → GitHub**).
+2. In your GitHub repo, go to **Settings → Pages**.
+3. Under **Build and deployment**, select **Source: GitHub Actions**.
+4. Push to `main` — the workflow at `.github/workflows/deploy.yml` will build and deploy `dist/`.
+
+Your site will be available at `https://<owner>.github.io/<repo>/`.
+
 
 ## Can I connect a custom domain to my Lovable project?
 
