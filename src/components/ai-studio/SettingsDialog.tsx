@@ -21,6 +21,7 @@ export function SettingsDialog({
 }) {
   const sections = [
     { id: "general", label: "General" },
+    { id: "ai", label: "AI" },
     { id: "profile", label: "Profile" },
     { id: "mindset", label: "Mindset" },
     { id: "skillset", label: "Skillset" },
@@ -30,6 +31,15 @@ export function SettingsDialog({
   ] as const;
 
   const [section, setSection] = React.useState<(typeof sections)[number]["id"]>("general");
+
+  const openRouterModels = [
+    "openai/gpt-4o-mini",
+    "openai/gpt-4o",
+    "anthropic/claude-3.5-sonnet",
+    "anthropic/claude-3.5-haiku",
+    "google/gemini-2.0-flash",
+    "meta-llama/llama-3.1-70b-instruct",
+  ] as const;
 
   React.useEffect(() => {
     if (!open) setSection("general");
@@ -137,6 +147,61 @@ export function SettingsDialog({
                     onChange={(e) => setSettings({ ...settings, sidebarAutoCloseMobile: e.target.checked })}
                   />
                 </label>
+              </div>
+            </div>
+          ) : null}
+
+          {section === "ai" ? (
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h3 className="text-base font-semibold">AI</h3>
+                <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                  Provider & model (MVP: selection only)
+                </p>
+              </div>
+
+              <div
+                className="rounded-2xl border p-4"
+                style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
+              >
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium">Provider</span>
+                    <select
+                      className="h-10 w-full rounded-xl border bg-transparent px-3"
+                      style={{ borderColor: `hsl(var(--border))` }}
+                      value={settings.llmProvider}
+                      onChange={() => setSettings({ ...settings, llmProvider: "openrouter" })}
+                    >
+                      <option value="openrouter">OpenRouter</option>
+                    </select>
+                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      We’ll add secure key storage + real requests later.
+                    </p>
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium">Model</span>
+                    <select
+                      className="h-10 w-full rounded-xl border bg-transparent px-3"
+                      style={{ borderColor: `hsl(var(--border))` }}
+                      value={settings.llmModel}
+                      onChange={(e) => setSettings({ ...settings, llmModel: e.target.value })}
+                    >
+                      {!openRouterModels.includes(settings.llmModel as (typeof openRouterModels)[number]) ? (
+                        <option value={settings.llmModel}>{settings.llmModel}</option>
+                      ) : null}
+                      {openRouterModels.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      This only saves your preference (no API calls in MVP).
+                    </p>
+                  </label>
+                </div>
               </div>
             </div>
           ) : null}

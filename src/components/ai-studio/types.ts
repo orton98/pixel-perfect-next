@@ -19,6 +19,13 @@ export type SettingsState = {
   compactMode: boolean;
   showTimestamps: boolean;
   sidebarAutoCloseMobile: boolean;
+
+  /**
+   * MVP (UI-only): stored locally; not used to call any API yet.
+   * When we add a backend later, this becomes the source of truth for provider/model.
+   */
+  llmProvider: "openrouter";
+  llmModel: string;
 };
 
 export type ChatMessage = {
