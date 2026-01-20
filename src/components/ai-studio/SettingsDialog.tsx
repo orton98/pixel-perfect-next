@@ -33,6 +33,9 @@ export function SettingsDialog({
   const [section, setSection] = React.useState<(typeof sections)[number]["id"]>("general");
 
   const [revealOpenRouterKey, setRevealOpenRouterKey] = React.useState(false);
+  const [openRouterKeyTest, setOpenRouterKeyTest] = React.useState<
+    { status: "idle" | "testing" | "success" | "error"; message?: string }
+  >({ status: "idle" });
 
   const openRouterModels = [
     "openai/gpt-4o-mini",
@@ -43,10 +46,45 @@ export function SettingsDialog({
     "meta-llama/llama-3.1-70b-instruct",
   ] as const;
 
+  const testOpenRouterKey = async () => {
+    const key = settings.openRouterApiKey.trim();
+    if (!key) {
+      setOpenRouterKeyTest({ status: "error", message: "Paste a key first." });
+      return;
+    }
+
+    setOpenRouterKeyTest({ status: "testing", message: "Testing…" });
+    try {
+      const resp = await fetch("https://openrouter.ai/api/v1/auth/key", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${key}`,
+        },
+      });
+
+      if (!resp.ok) {
+        setOpenRouterKeyTest({
+          status: "error",
+          message: resp.status === 401 ? "Invalid key." : `Request failed (${resp.status}).`,
+        });
+        return;
+      }
+
+      setOpenRouterKeyTest({ status: "success", message: "Key looks valid." });
+    } catch {
+      setOpenRouterKeyTest({ status: "error", message: "Network error." });
+    }
+  };
+
   React.useEffect(() => {
     // Auto-hide the key when switching sections.
     setRevealOpenRouterKey(false);
   }, [section]);
+
+  React.useEffect(() => {
+    // Reset test state whenever the key changes.
+    setOpenRouterKeyTest({ status: "idle" });
+  }, [settings.openRouterApiKey]);
 
   React.useEffect(() => {
     if (!open) setSection("general");
@@ -231,9 +269,37 @@ export function SettingsDialog({
                           {revealOpenRouterKey ? "Hide" : "Show"}
                         </button>
                       </div>
-                      <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                        Not secure in MVP: stored in localStorage on this device. We’ll move it to secure secrets when we add a backend.
-                      </p>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                          Not secure in MVP: stored in localStorage on this device.
+                        </p>
+                        <div className="flex items-center gap-3">
+                          {openRouterKeyTest.status !== "idle" ? (
+                            <span
+                              className="text-xs"
+                              style={{
+                                color:
+                                  openRouterKeyTest.status === "success"
+                                    ? `hsl(var(--primary))`
+                                    : openRouterKeyTest.status === "error"
+                                      ? `hsl(var(--destructive))`
+                                      : `hsl(var(--muted-foreground))`,
+                              }}
+                            >
+                              {openRouterKeyTest.message}
+                            </span>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="inline-flex h-9 items-center rounded-xl border border-border bg-transparent px-3 text-xs text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                            onClick={testOpenRouterKey}
+                            disabled={openRouterKeyTest.status === "testing"}
+                          >
+                            {openRouterKeyTest.status === "testing" ? "Testing…" : "Test key"}
+                          </button>
+                        </div>
+                      </div>
                     </label>
                   </div>
                 </div>
