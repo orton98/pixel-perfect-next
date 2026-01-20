@@ -73,7 +73,7 @@ export function PromptComposer({
 
   return (
     <div
-      className="relative rounded-[28px] border border-border bg-card/55 shadow-elev"
+      className="relative overflow-visible rounded-[28px] border border-border bg-card/55 shadow-elev"
       style={{
         // signature moment: pointer-follow light field
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,7 +148,7 @@ export function PromptComposer({
         />
 
         <div className={"flex items-center px-1 " + (compact ? "gap-1 pb-0.5" : "gap-1 pb-1")}>
-          <div className="custom-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          <div className="custom-scrollbar flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overflow-y-visible">
             <button
               type="button"
               className="grid size-9 shrink-0 place-items-center rounded-full transition-colors hover:bg-accent"
