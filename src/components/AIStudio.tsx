@@ -438,6 +438,21 @@ export default function AIStudio() {
                 showTimestamps={settings.showTimestamps}
                 renderMarkdown={settings.renderMarkdown}
                 canRegenerate={!isStreaming && settings.aiRuntime !== "disabled"}
+                onUpdateUserMessage={(messageId, nextContent) => {
+                  if (!activeSession) return;
+                  const trimmed = nextContent.trim();
+                  if (!trimmed) return;
+
+                  setSessions((prev) =>
+                    prev.map((s) => {
+                      if (s.id !== activeSession.id) return s;
+                      return {
+                        ...s,
+                        messages: s.messages.map((m) => (m.id === messageId ? { ...m, content: trimmed } : m)),
+                      };
+                    }),
+                  );
+                }}
                 onRegenerateLast={() => {
                   if (isStreaming) return;
                   if (!activeSession) return;
