@@ -2,6 +2,7 @@ import * as React from "react";
 import { Bot, User } from "lucide-react";
 
 import type { ChatMessage } from "./types";
+import { MarkdownMessage } from "./MarkdownMessage";
 import { formatTime } from "./utils";
 
 export function ChatThread({
@@ -47,7 +48,7 @@ export function ChatThread({
                       (isUser ? "bg-primary/10" : "bg-background/30")
                     }
                   >
-                    {m.content}
+                    {isUser ? m.content : <MarkdownMessage content={m.content} />}
                   </div>
                   {showTimestamps ? (
                     <div
