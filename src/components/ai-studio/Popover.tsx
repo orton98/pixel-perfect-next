@@ -74,6 +74,9 @@ export function Popover({
         aria-label={value?.shortName ?? label}
         onPointerDown={(e) => {
           // Long-press (mobile) to preview full label without opening the menu.
+          // Only enable on small screens where chips are icon-only.
+          if (!isMobile) return;
+
           // Only trigger on primary touch/pen pointers.
           if (e.pointerType === "touch" || e.pointerType === "pen") {
             if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
