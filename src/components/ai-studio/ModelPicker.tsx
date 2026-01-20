@@ -91,7 +91,7 @@ export function ModelPicker({
         type="button"
         disabled={disabled}
         className={
-          "inline-flex h-9 max-w-[220px] items-center gap-2 rounded-full px-3 text-sm transition-colors hover:bg-accent disabled:opacity-50 " +
+          "inline-flex h-9 max-w-[140px] items-center gap-2 rounded-full px-3 text-sm transition-colors hover:bg-accent disabled:opacity-50 sm:max-w-[220px] " +
           (value ? "text-foreground" : "text-muted-foreground")
         }
         onClick={() => setOpen((v) => !v)}
