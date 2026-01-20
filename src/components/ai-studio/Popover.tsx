@@ -1,6 +1,9 @@
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
 
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
+
 import type { PresetItem } from "./types";
 import { PresetIconGlyph } from "./PresetIconGlyph";
 
@@ -17,6 +20,8 @@ export function Popover({
   icon?: LucideIcon;
   onSelect: (item: PresetItem) => void;
 }) {
+  const isMobile = useMediaQuery("(max-width: 640px)");
+
   const [open, setOpen] = React.useState(false);
   const [tooltipOpen, setTooltipOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -25,6 +30,7 @@ export function Popover({
 
   React.useEffect(() => {
     if (!open) return;
+    if (isMobile) return; // mobile uses bottom sheet
 
     const onPointerDown = (e: MouseEvent | TouchEvent) => {
       const root = rootRef.current;
@@ -50,7 +56,7 @@ export function Popover({
       document.removeEventListener("touchstart", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [isMobile, open]);
 
   React.useEffect(() => {
     return () => {
@@ -115,7 +121,44 @@ export function Popover({
       ) : null}
 
 
-      {open ? (
+      {isMobile ? (
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerContent className="rounded-t-[28px] border-border bg-popover">
+            <DrawerHeader className="text-left">
+              <DrawerTitle>{label}</DrawerTitle>
+              <p className="text-sm text-muted-foreground">Choose one — it becomes a tag.</p>
+              {value?.shortName ? (
+                <p className="text-xs text-muted-foreground">
+                  Current: <span className="font-medium text-foreground">{value.shortName}</span>
+                </p>
+              ) : null}
+            </DrawerHeader>
+
+            <div className="custom-scrollbar max-h-[50vh] space-y-1 overflow-auto px-2 pb-6">
+              {items.map((item) => (
+                <button
+                  key={item.id}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors hover:bg-accent"
+                  onClick={() => {
+                    onSelect(item);
+                    setOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span className="grid size-10 place-items-center rounded-xl border border-border bg-background/30 shadow-crisp">
+                    <PresetIconGlyph name={item.icon} className="size-5 text-primary" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-foreground">{item.shortName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{item.name}</span>
+                  </span>
+                  {item.extra ? <span className="text-xs text-muted-foreground">{item.extra}</span> : null}
+                </button>
+              ))}
+            </div>
+          </DrawerContent>
+        </Drawer>
+      ) : open ? (
         <div
           className="absolute left-0 top-11 z-50 w-72 rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
           role="dialog"
