@@ -6,12 +6,18 @@ export const STORAGE_PRESETS = "ai_studio_agent_presets_v1";
 export const STORAGE_SESSIONS = "ai_studio_sessions_v1";
 export const STORAGE_ACTIVE_SESSION = "ai_studio_active_session_v1";
 export const STORAGE_OPENROUTER_MODELS = "ai_studio_openrouter_models_cache_v1";
+export const STORAGE_OLLAMA_MODELS = "ai_studio_ollama_models_cache_v1";
 
 export const defaultSettings: SettingsState = {
   compactMode: false,
   showTimestamps: false,
   sidebarAutoCloseMobile: true,
 
+  // Runtime selection (UI-only local-first MVP)
+  aiRuntime: "disabled",
+  ollamaBaseUrl: "http://localhost:11434",
+
+  // Legacy fields (still used for model preference + future upgrades)
   llmProvider: "openrouter",
   llmModel: "openai/gpt-4o-mini",
   openRouterApiKey: "",

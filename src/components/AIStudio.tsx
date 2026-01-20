@@ -20,6 +20,7 @@ import {
 import { Modal } from "./ai-studio/Modal";
 import { useLocalStorageState } from "./ai-studio/utils";
 import { runLocalMigrations } from "./ai-studio/migrations";
+import { sendRuntimeChat } from "./ai-studio/aiRuntime";
 import { SparkMark } from "./ai-studio/SparkMark";
 import { ChatThread } from "./ai-studio/ChatThread";
 import { PromptComposer } from "./ai-studio/PromptComposer";
@@ -162,13 +163,11 @@ export default function AIStudio() {
     const chosen = [mindset, skillset, toolset].filter(Boolean) as PresetItem[];
     const webhookSummary = chosen.map((p) => `${p.shortName}${p.webhookUrl ? " (webhook set)" : ""}`).join(", ");
 
-    const assistantMsg: ChatMessage = {
-      id: crypto.randomUUID(),
+    const assistantId = crypto.randomUUID();
+    const placeholder: ChatMessage = {
+      id: assistantId,
       role: "assistant",
-      content:
-        "Got it. (UI-only local build)" +
-        (webhookSummary ? `\n\nSelected: ${webhookSummary}` : "") +
-        "\n\nNext: wire sending to n8n webhooks.",
+      content: settings.aiRuntime === "disabled" ? "Got it." : "Thinking…",
       createdAt: Date.now() + 1,
     };
 
@@ -179,10 +178,70 @@ export default function AIStudio() {
         return {
           ...s,
           title: isFirstUserMessage ? titleFromFirstLine(trimmed) || s.title : s.title,
-          messages: [...s.messages, userMsg, assistantMsg],
+          messages: [...s.messages, userMsg, placeholder],
         };
       }),
     );
+
+    if (settings.aiRuntime === "disabled") {
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id !== activeSession.id) return s;
+          return {
+            ...s,
+            messages: s.messages.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    content:
+                      "Got it. (UI-only local build)" +
+                      (webhookSummary ? `\n\nSelected: ${webhookSummary}` : "") +
+                      "\n\nEnable Ollama/OpenRouter in Settings → AI to get real responses.",
+                  }
+                : m,
+            ),
+          };
+        }),
+      );
+      return;
+    }
+
+    (async () => {
+      try {
+        const responseText = await sendRuntimeChat({
+          runtime: settings.aiRuntime,
+          model: settings.llmModel,
+          ollamaBaseUrl: settings.ollamaBaseUrl,
+          openRouterApiKey: settings.openRouterApiKey,
+          messages: [{ role: "user", content: trimmed }],
+        });
+
+        setSessions((prev) =>
+          prev.map((s) => {
+            if (s.id !== activeSession.id) return s;
+            return {
+              ...s,
+              messages: s.messages.map((m) => (m.id === assistantId ? { ...m, content: responseText } : m)),
+            };
+          }),
+        );
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Request failed.";
+        setSessions((prev) =>
+          prev.map((s) => {
+            if (s.id !== activeSession.id) return s;
+            return {
+              ...s,
+              messages: s.messages.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: `Error: ${msg}\n\nTip: for Ollama, verify it’s running at ${settings.ollamaBaseUrl}.` }
+                  : m,
+              ),
+            };
+          }),
+        );
+      }
+    })();
   };
 
   return (

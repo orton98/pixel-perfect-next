@@ -56,6 +56,13 @@ const settingsSchema = z.object({
   compactMode: z.boolean(),
   showTimestamps: z.boolean(),
   sidebarAutoCloseMobile: z.boolean(),
+
+  aiRuntime: z
+    .union([z.literal("disabled"), z.literal("ollama"), z.literal("openrouter_byok")])
+    .optional()
+    .default("disabled"),
+  ollamaBaseUrl: z.string().trim().min(1).max(2000).optional().default("http://localhost:11434"),
+
   llmProvider: z.literal("openrouter"),
   llmModel: z.string().trim().min(1).max(200),
   openRouterApiKey: z.string().max(500),

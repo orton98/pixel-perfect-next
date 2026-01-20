@@ -3,7 +3,8 @@ import * as React from "react";
 import type { Presets, Session, SettingsState } from "./types";
 import { Modal } from "./Modal";
 import { PresetEditor } from "./PresetEditor";
-import { defaultPresets, defaultSettings, STORAGE_OPENROUTER_MODELS } from "./storage";
+import { defaultPresets, defaultSettings, STORAGE_OLLAMA_MODELS, STORAGE_OPENROUTER_MODELS } from "./storage";
+import { fetchOllamaModels, fetchOpenRouterModels } from "./aiRuntime";
 import {
   applyImportedLocalData,
   buildLocalExportPayload,
@@ -37,7 +38,7 @@ export function SettingsDialog({
 }) {
   const sections = [
     { id: "general", label: "General" },
-    { id: "ai", label: "AI (Coming soon)" },
+    { id: "ai", label: "AI" },
     { id: "profile", label: "Profile" },
     { id: "mindset", label: "Mindset" },
     { id: "skillset", label: "Skillset" },
@@ -57,9 +58,9 @@ export function SettingsDialog({
     "meta-llama/llama-3.1-70b-instruct",
   ] as const;
 
-  const [openRouterModelQuery, setOpenRouterModelQuery] = React.useState("");
+  const [modelQuery, setModelQuery] = React.useState("");
 
-  const [openRouterModelOptions] = React.useState<string[]>(() => {
+  const [openRouterModelOptions, setOpenRouterModelOptions] = React.useState<string[]>(() => {
     const fallback = [...defaultOpenRouterModels] as string[];
     try {
       const raw = localStorage.getItem(STORAGE_OPENROUTER_MODELS);
@@ -72,11 +73,37 @@ export function SettingsDialog({
     }
   });
 
+  const [ollamaModelOptions, setOllamaModelOptions] = React.useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_OLLAMA_MODELS);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as { models?: unknown };
+      const models = Array.isArray(parsed.models) ? parsed.models.map((m) => String(m)) : [];
+      return models.length ? models : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [openRouterFetch, setOpenRouterFetch] = React.useState<{ status: "idle" | "fetching" | "success" | "error"; message?: string }>({
+    status: "idle",
+  });
+
+  const [ollamaFetch, setOllamaFetch] = React.useState<{ status: "idle" | "fetching" | "success" | "error"; message?: string }>({
+    status: "idle",
+  });
+
   const filteredOpenRouterModels = React.useMemo(() => {
-    const q = openRouterModelQuery.trim().toLowerCase();
+    const q = modelQuery.trim().toLowerCase();
     if (!q) return openRouterModelOptions;
     return openRouterModelOptions.filter((m) => m.toLowerCase().includes(q));
-  }, [openRouterModelOptions, openRouterModelQuery]);
+  }, [openRouterModelOptions, modelQuery]);
+
+  const filteredOllamaModels = React.useMemo(() => {
+    const q = modelQuery.trim().toLowerCase();
+    if (!q) return ollamaModelOptions;
+    return ollamaModelOptions.filter((m) => m.toLowerCase().includes(q));
+  }, [ollamaModelOptions, modelQuery]);
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [importStatus, setImportStatus] = React.useState<{ status: "idle" | "success" | "error"; message?: string }>({
@@ -201,7 +228,7 @@ export function SettingsDialog({
               <div className="space-y-1">
                 <h3 className="text-base font-semibold">AI</h3>
                 <p className="text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
-                  Coming soon: this open-source local build does not call any model providers.
+                  Choose a runtime for local development.
                 </p>
               </div>
 
@@ -209,22 +236,35 @@ export function SettingsDialog({
                 className="rounded-2xl border p-4"
                 style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
               >
-                <div className="space-y-4">
-                  <div className="rounded-xl border px-4 py-3" style={{ borderColor: `hsl(var(--border))` }}>
-                    <p className="text-sm font-medium">Provider integrations</p>
-                    <p className="mt-1 text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
-                      API keys and live model calls are intentionally disabled in the UI-only version.
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium">Runtime</span>
+                    <select
+                      className="h-10 w-full rounded-xl border bg-transparent px-3"
+                      style={{ borderColor: `hsl(var(--border))` }}
+                      value={settings.aiRuntime}
+                      onChange={(e) => {
+                        const next = e.target.value as SettingsState["aiRuntime"];
+                        setSettings({ ...settings, aiRuntime: next });
+                        setModelQuery("");
+                      }}
+                    >
+                      <option value="disabled">Disabled (no AI calls)</option>
+                      <option value="ollama">Ollama (localhost)</option>
+                      <option value="openrouter_byok">OpenRouter (BYOK — local/dev only)</option>
+                    </select>
+                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
+                      For production, use a server-side integration to keep keys safe.
                     </p>
-                  </div>
+                  </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-medium">Preferred model (saved locally)</span>
-
+                    <span className="text-sm font-medium">Model</span>
                     <input
                       className="h-10 w-full rounded-xl border bg-transparent px-3"
                       style={{ borderColor: `hsl(var(--border))` }}
-                      value={openRouterModelQuery}
-                      onChange={(e) => setOpenRouterModelQuery(e.target.value)}
+                      value={modelQuery}
+                      onChange={(e) => setModelQuery(e.target.value)}
                       placeholder="Search models…"
                       autoComplete="off"
                     />
@@ -234,11 +274,21 @@ export function SettingsDialog({
                       style={{ borderColor: `hsl(var(--border))` }}
                       value={settings.llmModel}
                       onChange={(e) => setSettings({ ...settings, llmModel: e.target.value })}
+                      disabled={settings.aiRuntime === "disabled"}
                     >
-                      {!openRouterModelOptions.includes(settings.llmModel) ? (
-                        <option value={settings.llmModel}>{settings.llmModel}</option>
-                      ) : null}
-                      {filteredOpenRouterModels.length ? (
+                      {settings.aiRuntime === "ollama" ? (
+                        filteredOllamaModels.length ? (
+                          filteredOllamaModels.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>
+                            No Ollama models found
+                          </option>
+                        )
+                      ) : filteredOpenRouterModels.length ? (
                         filteredOpenRouterModels.map((m) => (
                           <option key={m} value={m}>
                             {m}
@@ -250,11 +300,144 @@ export function SettingsDialog({
                         </option>
                       )}
                     </select>
-
-                    <p className="text-xs" style={{ color: `hsl(var(--muted-foreground))` }}>
-                      This is only a preference for future upgrades.
-                    </p>
                   </label>
+
+                  {settings.aiRuntime === "ollama" ? (
+                    <div className="md:col-span-2">
+                      <div className="rounded-xl border px-4 py-3" style={{ borderColor: `hsl(var(--border))` }}>
+                        <p className="text-sm font-medium">Ollama (localhost)</p>
+                        <p className="mt-1 text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                          Requires Ollama running locally. If requests fail, it’s usually a CORS issue.
+                        </p>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium">Base URL</span>
+                          <input
+                            className="h-10 w-full rounded-xl border bg-transparent px-3"
+                            style={{ borderColor: `hsl(var(--border))` }}
+                            value={settings.ollamaBaseUrl}
+                            onChange={(e) => setSettings({ ...settings, ollamaBaseUrl: e.target.value })}
+                            placeholder="http://localhost:11434"
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </label>
+
+                        <div className="flex flex-col justify-end">
+                          <button
+                            type="button"
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                            onClick={async () => {
+                              setOllamaFetch({ status: "fetching", message: "Fetching…" });
+                              try {
+                                const models = await fetchOllamaModels(settings.ollamaBaseUrl);
+                                setOllamaModelOptions(models);
+                                localStorage.setItem(
+                                  STORAGE_OLLAMA_MODELS,
+                                  JSON.stringify({ updatedAt: Date.now(), models }),
+                                );
+                                if (models.length && settings.llmModel.trim() === "") {
+                                  setSettings({ ...settings, llmModel: models[0] });
+                                }
+                                setOllamaFetch({ status: "success", message: `${models.length} models loaded.` });
+                              } catch (e) {
+                                setOllamaFetch({ status: "error", message: e instanceof Error ? e.message : "Failed." });
+                              }
+                            }}
+                            disabled={ollamaFetch.status === "fetching"}
+                          >
+                            {ollamaFetch.status === "fetching" ? "Fetching…" : "Fetch models"}
+                          </button>
+                          {ollamaFetch.status !== "idle" ? (
+                            <p
+                              className="mt-2 text-xs"
+                              style={{
+                                color:
+                                  ollamaFetch.status === "success"
+                                    ? `hsl(var(--primary))`
+                                    : ollamaFetch.status === "error"
+                                      ? `hsl(var(--destructive))`
+                                      : `hsl(var(--muted-foreground))`,
+                              }}
+                            >
+                              {ollamaFetch.message}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {settings.aiRuntime === "openrouter_byok" ? (
+                    <div className="md:col-span-2">
+                      <div className="rounded-xl border px-4 py-3" style={{ borderColor: `hsl(var(--border))` }}>
+                        <p className="text-sm font-medium">OpenRouter (BYOK — local/dev only)</p>
+                        <p className="mt-1 text-sm" style={{ color: `hsl(var(--muted-foreground))` }}>
+                          This calls OpenRouter directly from your browser. Not safe for production.
+                        </p>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium">API key</span>
+                          <input
+                            className="h-10 w-full rounded-xl border bg-transparent px-3"
+                            style={{ borderColor: `hsl(var(--border))` }}
+                            type="password"
+                            value={settings.openRouterApiKey}
+                            onChange={(e) => setSettings({ ...settings, openRouterApiKey: e.target.value })}
+                            placeholder="sk-or-…"
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </label>
+
+                        <div className="flex flex-col justify-end">
+                          <button
+                            type="button"
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-border bg-transparent px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                            onClick={async () => {
+                              setOpenRouterFetch({ status: "fetching", message: "Fetching…" });
+                              try {
+                                const models = await fetchOpenRouterModels(settings.openRouterApiKey);
+                                setOpenRouterModelOptions(models);
+                                localStorage.setItem(
+                                  STORAGE_OPENROUTER_MODELS,
+                                  JSON.stringify({ updatedAt: Date.now(), models }),
+                                );
+                                setOpenRouterFetch({ status: "success", message: `${models.length} models loaded.` });
+                              } catch (e) {
+                                setOpenRouterFetch({
+                                  status: "error",
+                                  message: e instanceof Error ? e.message : "Failed.",
+                                });
+                              }
+                            }}
+                            disabled={openRouterFetch.status === "fetching"}
+                          >
+                            {openRouterFetch.status === "fetching" ? "Fetching…" : "Fetch models"}
+                          </button>
+                          {openRouterFetch.status !== "idle" ? (
+                            <p
+                              className="mt-2 text-xs"
+                              style={{
+                                color:
+                                  openRouterFetch.status === "success"
+                                    ? `hsl(var(--primary))`
+                                    : openRouterFetch.status === "error"
+                                      ? `hsl(var(--destructive))`
+                                      : `hsl(var(--muted-foreground))`,
+                              }}
+                            >
+                              {openRouterFetch.message}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
