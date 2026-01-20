@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Copy, RotateCcw } from "lucide-react";
+import { Check, Copy, Pencil, RotateCcw, X } from "lucide-react";
 
 import type { ChatMessage } from "./types";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -12,6 +12,7 @@ export function ChatThread({
   renderMarkdown,
   canRegenerate,
   onRegenerateLast,
+  onUpdateUserMessage,
 }: {
   messages: ChatMessage[];
   compact: boolean;
@@ -19,12 +20,21 @@ export function ChatThread({
   renderMarkdown: boolean;
   canRegenerate: boolean;
   onRegenerateLast: () => void;
+  onUpdateUserMessage: (messageId: string, nextContent: string) => void;
 }) {
   const endRef = React.useRef<HTMLDivElement | null>(null);
+
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [draft, setDraft] = React.useState<string>("");
+  const draftRef = React.useRef<HTMLTextAreaElement | null>(null);
 
   React.useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
+
+  React.useEffect(() => {
+    if (editingId) draftRef.current?.focus();
+  }, [editingId]);
 
   return (
     <div className="h-full">
@@ -49,7 +59,32 @@ export function ChatThread({
                     }
                   >
                     {isUser ? (
-                      m.content
+                      editingId === m.id ? (
+                        <textarea
+                          ref={draftRef}
+                          className={
+                            "w-full max-h-[240px] resize-none overflow-y-auto rounded-2xl bg-transparent text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none " +
+                            (compact ? "px-0 py-0" : "px-0 py-0")
+                          }
+                          rows={1}
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              const trimmed = draft.trim();
+                              if (!trimmed) return;
+                              onUpdateUserMessage(m.id, trimmed);
+                              setEditingId(null);
+                            }
+                            if (e.key === "Escape") {
+                              setEditingId(null);
+                            }
+                          }}
+                        />
+                      ) : (
+                        m.content
+                      )
                     ) : renderMarkdown ? (
                       <MarkdownMessage content={m.content} />
                     ) : (
@@ -85,7 +120,68 @@ export function ChatThread({
                         </button>
                       ) : null}
                     </div>
-                  ) : null}
+                  ) : (
+                    <div
+                      className={
+                        "mt-2 flex items-center justify-end gap-1 transition-opacity " +
+                        (editingId === m.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100")
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        aria-label="Copy message"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(m.content);
+                          } catch {
+                            // ignore
+                          }
+                        }}
+                      >
+                        <Copy className="size-4" aria-hidden="true" />
+                      </button>
+
+                      {editingId === m.id ? (
+                        <>
+                          <button
+                            type="button"
+                            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            aria-label="Save edit"
+                            onClick={() => {
+                              const trimmed = draft.trim();
+                              if (!trimmed) return;
+                              onUpdateUserMessage(m.id, trimmed);
+                              setEditingId(null);
+                            }}
+                          >
+                            <Check className="size-4" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                            aria-label="Cancel edit"
+                            onClick={() => setEditingId(null)}
+                          >
+                            <X className="size-4" aria-hidden="true" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          aria-label="Edit message"
+                          onClick={() => {
+                            setEditingId(m.id);
+                            setDraft(m.content);
+                          }}
+                        >
+                          <Pencil className="size-4" aria-hidden="true" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
 
                   {showTimestamps ? (
                     <div
