@@ -23,10 +23,17 @@ export function Popover({
   const isMobile = useMediaQuery("(max-width: 640px)");
 
   const [open, setOpen] = React.useState(false);
-  const [tooltipOpen, setTooltipOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
   const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const longPressTimerRef = React.useRef<number | null>(null);
-  const suppressNextClickRef = React.useRef(false);
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((it) => {
+      const hay = `${it.shortName} ${it.name} ${it.extra ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [items, query]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -43,7 +50,6 @@ export function Popover({
       if (e.key === "Escape") {
         e.preventDefault();
         setOpen(false);
-        setTooltipOpen(false);
       }
     };
 
@@ -56,12 +62,12 @@ export function Popover({
     };
   }, [isMobile, open]);
 
+  // Reset search whenever we open.
   React.useEffect(() => {
-    return () => {
-      if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
-    };
-  }, []);
+    if (open) setQuery("");
+  }, [open]);
 
+  const buttonLabel = value?.shortName ?? label;
 
   return (
     <div ref={rootRef} className="relative">
@@ -71,56 +77,15 @@ export function Popover({
           "inline-flex h-9 items-center gap-2 rounded-full px-2 text-sm transition-colors hover:bg-accent sm:px-3 " +
           (value ? "text-primary" : "text-foreground")
         }
-        aria-label={value?.shortName ?? label}
-        onPointerDown={(e) => {
-          // Long-press (mobile) to preview full label without opening the menu.
-          // Only enable on small screens where chips are icon-only.
-          if (!isMobile) return;
-
-          // Only trigger on primary touch/pen pointers.
-          if (e.pointerType === "touch" || e.pointerType === "pen") {
-            if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = window.setTimeout(() => {
-              suppressNextClickRef.current = true;
-              setTooltipOpen(true);
-              window.setTimeout(() => setTooltipOpen(false), 1400);
-            }, 450);
-          }
-        }}
-        onPointerUp={() => {
-          if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
-        }}
-        onPointerCancel={() => {
-          if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
-        }}
-        onClick={() => {
-          if (suppressNextClickRef.current) {
-            suppressNextClickRef.current = false;
-            return;
-          }
-          setOpen((v) => !v);
-        }}
+        aria-label={buttonLabel}
+        onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
         {Icon ? <Icon className="size-4 text-muted-foreground" aria-hidden="true" /> : null}
-        <span className="hidden font-medium sm:inline">{value?.shortName ?? label}</span>
-        <span className="sr-only sm:hidden">{value?.shortName ?? label}</span>
+        <span className="hidden font-medium sm:inline">{buttonLabel}</span>
+        <span className="sr-only sm:hidden">{buttonLabel}</span>
       </button>
-
-      {tooltipOpen ? (
-        <div
-          className="pointer-events-none absolute left-0 bottom-11 z-40 max-w-[240px] rounded-xl border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-elev"
-          role="status"
-          aria-live="polite"
-        >
-          <span className="font-medium">{value?.shortName ?? label}</span>
-          {value?.name ? <span className="ml-2 text-muted-foreground">{value.name}</span> : null}
-        </div>
-      ) : null}
-
 
       {isMobile ? (
         <Drawer open={open} onOpenChange={setOpen}>
@@ -135,33 +100,51 @@ export function Popover({
               ) : null}
             </DrawerHeader>
 
+            <div className="px-4 pb-3">
+              <input
+                className="h-10 w-full rounded-xl border bg-transparent px-3 text-sm"
+                style={{ borderColor: `hsl(var(--border))` }}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${label.toLowerCase()}…`}
+                autoComplete="off"
+              />
+            </div>
+
             <div className="custom-scrollbar max-h-[50vh] space-y-1 overflow-auto px-2 pb-6">
-              {items.map((item) => (
-                <button
-                  key={item.id}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors hover:bg-accent"
-                  onClick={() => {
-                    onSelect(item);
-                    setOpen(false);
-                  }}
-                  type="button"
-                >
-                  <span className="grid size-10 place-items-center rounded-xl border border-border bg-background/30 shadow-crisp">
-                    <PresetIconGlyph name={item.icon} className="size-5 text-primary" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-foreground">{item.shortName}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{item.name}</span>
-                  </span>
-                  {item.extra ? <span className="text-xs text-muted-foreground">{item.extra}</span> : null}
-                </button>
-              ))}
+              {filtered.length ? (
+                filtered.map((item) => (
+                  <button
+                    key={item.id}
+                    className={
+                      "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors hover:bg-accent " +
+                      (item.id === value?.id ? "bg-accent" : "")
+                    }
+                    onClick={() => {
+                      onSelect(item);
+                      setOpen(false);
+                    }}
+                    type="button"
+                  >
+                    <span className="grid size-10 place-items-center rounded-xl border border-border bg-background/30 shadow-crisp">
+                      <PresetIconGlyph name={item.icon} className="size-5 text-primary" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-foreground">{item.shortName}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{item.name}</span>
+                    </span>
+                    {item.extra ? <span className="text-xs text-muted-foreground">{item.extra}</span> : null}
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+              )}
             </div>
           </DrawerContent>
         </Drawer>
       ) : open ? (
         <div
-          className="absolute left-0 bottom-11 z-50 w-72 rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
+          className="absolute left-0 bottom-11 z-50 w-[320px] rounded-2xl border border-border bg-popover p-2 text-popover-foreground shadow-elev"
           role="dialog"
         >
           <div className="px-2 pb-2 pt-1">
@@ -169,24 +152,45 @@ export function Popover({
             <p className="text-xs text-muted-foreground">Choose one — it becomes a tag.</p>
           </div>
 
-          <div className="space-y-1">
-            {items.map((item) => (
-              <button
-                key={item.id}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-                onClick={() => {
-                  onSelect(item);
-                  setOpen(false);
-                }}
-                type="button"
-              >
-                <span className="grid size-8 place-items-center rounded-xl border border-border bg-card shadow-crisp">
-                  <PresetIconGlyph name={item.icon} className="size-4 text-primary" />
-                </span>
-                <span className="flex-1">{item.name}</span>
-                {item.extra ? <span className="text-xs text-muted-foreground">{item.extra}</span> : null}
-              </button>
-            ))}
+          <div className="px-2 pb-2">
+            <input
+              className="h-9 w-full rounded-xl border bg-transparent px-3 text-sm"
+              style={{ borderColor: `hsl(var(--border))` }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="custom-scrollbar max-h-[280px] space-y-1 overflow-auto">
+            {filtered.length ? (
+              filtered.map((item) => (
+                <button
+                  key={item.id}
+                  className={
+                    "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-accent " +
+                    (item.id === value?.id ? "bg-accent" : "")
+                  }
+                  onClick={() => {
+                    onSelect(item);
+                    setOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span className="grid size-8 place-items-center rounded-xl border border-border bg-card shadow-crisp">
+                    <PresetIconGlyph name={item.icon} className="size-4 text-primary" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-foreground">{item.shortName}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{item.name}</span>
+                  </span>
+                  {item.extra ? <span className="text-xs text-muted-foreground">{item.extra}</span> : null}
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>
+            )}
           </div>
         </div>
       ) : null}
