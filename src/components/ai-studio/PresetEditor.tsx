@@ -62,7 +62,14 @@ export function PresetEditor({
         className="rounded-2xl border p-4"
         style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.20)` }}
       >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px_160px_1fr_120px]">
+        <div
+          className={
+            "grid grid-cols-1 gap-3 sm:grid-cols-2 " +
+            (allowExtra
+              ? "lg:grid-cols-[1fr_180px_160px_1fr_120px]"
+              : "lg:grid-cols-[1fr_180px_1fr_120px]")
+          }
+        >
           <input
             className="h-10 rounded-xl border bg-transparent px-3"
             style={{ borderColor: `hsl(var(--border))` }}
@@ -89,9 +96,7 @@ export function PresetEditor({
               onChange={(e) => setNewExtra(e.target.value)}
               placeholder="Extra (optional)"
             />
-          ) : (
-            <div className="hidden md:block" />
-          )}
+          ) : null}
 
           <input
             className="h-10 rounded-xl border bg-transparent px-3"
@@ -146,7 +151,12 @@ export function PresetEditor({
         {items.map((item) => (
           <div
             key={item.id}
-            className="grid grid-cols-1 gap-3 rounded-2xl border px-4 py-4 md:grid-cols-[1fr_180px_160px_1fr_120px_44px]"
+            className={
+              "grid grid-cols-1 gap-3 rounded-2xl border px-4 py-4 sm:grid-cols-2 " +
+              (allowExtra
+                ? "lg:grid-cols-[1fr_180px_160px_1fr_120px_44px]"
+                : "lg:grid-cols-[1fr_180px_1fr_120px_44px]")
+            }
             style={{ borderColor: `hsl(var(--border))`, background: `hsl(var(--background) / 0.10)` }}
           >
             <input
@@ -173,9 +183,7 @@ export function PresetEditor({
                   onChange(items.map((x) => (x.id === item.id ? { ...x, extra: e.target.value || undefined } : x)))
                 }
               />
-            ) : (
-              <div className="hidden md:block" />
-            )}
+            ) : null}
 
             <input
               className="h-10 rounded-xl border bg-transparent px-3"
