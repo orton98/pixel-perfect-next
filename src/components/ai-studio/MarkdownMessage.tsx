@@ -3,11 +3,31 @@ import * as React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import Prism from "prismjs";
+
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-tsx";
 
 // Safe markdown rendering for assistant messages (sanitized)
 
 const sanitizeSchema = {
   ...defaultSchema,
+  tagNames: Array.from(
+    new Set([
+      ...(defaultSchema.tagNames ?? []),
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+      "input",
+    ]),
+  ),
   attributes: {
     ...defaultSchema.attributes,
     a: [
@@ -18,6 +38,12 @@ const sanitizeSchema = {
       ["title"],
     ],
     code: [...(defaultSchema.attributes?.code ?? []), ["className"]],
+    input: [
+      ...(defaultSchema.attributes?.input ?? []),
+      ["type"],
+      ["checked"],
+      ["disabled"],
+    ],
   },
 } as const;
 
@@ -36,10 +62,29 @@ function InlineCode({ children }: { children?: React.ReactNode }) {
   );
 }
 
+function normalizeLanguage(lang: string) {
+  const l = String(lang || "").toLowerCase();
+  if (l === "js") return "javascript";
+  if (l === "ts") return "typescript";
+  if (l === "sh") return "bash";
+  return l;
+}
+
 function CodeBlock({ className, children }: { className?: string; children?: React.ReactNode }) {
   const raw = getText(children);
-  const language = (className || "").match(/language-([a-z0-9-]+)/i)?.[1] ?? "";
+  const language = normalizeLanguage((className || "").match(/language-([a-z0-9-]+)/i)?.[1] ?? "");
   const [copied, setCopied] = React.useState(false);
+
+  const html = React.useMemo(() => {
+    try {
+      const grammar = (Prism.languages as any)[language];
+      if (grammar) return Prism.highlight(raw, grammar, language);
+    } catch {
+      // ignore
+    }
+    // Fallback: escape minimal
+    return raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }, [language, raw]);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-muted/40 shadow-crisp">
@@ -64,7 +109,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
       </div>
 
       <pre className="custom-scrollbar overflow-auto p-3 text-[13px] leading-relaxed text-foreground">
-        <code>{raw}</code>
+        <code className="md-code" dangerouslySetInnerHTML={{ __html: html }} />
       </pre>
     </div>
   );
@@ -72,7 +117,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
 
 export function MarkdownMessage({ content }: { content: string }) {
   return (
-    <div className="prose prose-invert max-w-none prose-p:my-2 prose-li:my-1 prose-ul:my-2 prose-ol:my-2 prose-pre:my-2 prose-a:text-primary">
+    <div className="md-markdown max-w-none">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
@@ -97,6 +142,33 @@ export function MarkdownMessage({ content }: { content: string }) {
             }
             return <CodeBlock>{children}</CodeBlock>;
           },
+          table: ({ children }) => (
+            <div className="custom-scrollbar my-3 overflow-x-auto rounded-2xl border border-border bg-background/20">
+              <table className="w-full border-collapse text-sm">{children}</table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="border-b border-border bg-background/30 px-3 py-2 text-left text-xs font-semibold text-foreground">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border-b border-border px-3 py-2 align-top text-sm text-foreground">{children}</td>
+          ),
+          ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
+          ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
+          li: ({ children }) => <li className="text-sm leading-relaxed">{children}</li>,
+          input: (props) => (
+            <input
+              type="checkbox"
+              className="mr-2 translate-y-[1px]"
+              style={{ accentColor: `hsl(var(--primary))` }}
+              checked={Boolean((props as any)?.checked)}
+              disabled
+              readOnly
+            />
+          ),
+          p: ({ children }) => <p className="my-2 text-sm leading-relaxed">{children}</p>,
         }}
       >
         {content}

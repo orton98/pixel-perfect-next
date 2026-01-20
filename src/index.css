@@ -125,3 +125,61 @@
   background: hsl(0 0% 0% / 0.55);
 }
 
+/* Markdown + code highlighting (Prism tokens) */
+.md-markdown {
+  color: hsl(var(--foreground));
+}
+
+.md-markdown .md-code .token.comment,
+.md-markdown .md-code .token.prolog,
+.md-markdown .md-code .token.doctype,
+.md-markdown .md-code .token.cdata {
+  color: hsl(var(--muted-foreground));
+}
+
+.md-markdown .md-code .token.punctuation {
+  color: hsl(var(--foreground) / 0.75);
+}
+
+.md-markdown .md-code .token.property,
+.md-markdown .md-code .token.tag,
+.md-markdown .md-code .token.boolean,
+.md-markdown .md-code .token.number,
+.md-markdown .md-code .token.constant,
+.md-markdown .md-code .token.symbol {
+  color: hsl(var(--primary));
+}
+
+.md-markdown .md-code .token.selector,
+.md-markdown .md-code .token.attr-name,
+.md-markdown .md-code .token.string,
+.md-markdown .md-code .token.char,
+.md-markdown .md-code .token.builtin,
+.md-markdown .md-code .token.inserted {
+  color: hsl(var(--primary) / 0.85);
+}
+
+.md-markdown .md-code .token.operator,
+.md-markdown .md-code .token.entity,
+.md-markdown .md-code .token.url,
+.md-markdown .md-code .token.variable {
+  color: hsl(var(--foreground));
+}
+
+.md-markdown .md-code .token.atrule,
+.md-markdown .md-code .token.attr-value,
+.md-markdown .md-code .token.keyword {
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.md-markdown .md-code .token.function,
+.md-markdown .md-code .token.class-name {
+  color: hsl(var(--foreground));
+}
+
+.md-markdown .md-code .token.regex,
+.md-markdown .md-code .token.important {
+  color: hsl(var(--destructive));
+}
+

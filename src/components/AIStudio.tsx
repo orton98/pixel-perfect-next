@@ -436,6 +436,94 @@ export default function AIStudio() {
                 messages={activeSession.messages}
                 compact={settings.compactMode}
                 showTimestamps={settings.showTimestamps}
+                renderMarkdown={settings.renderMarkdown}
+                canRegenerate={!isStreaming && settings.aiRuntime !== "disabled"}
+                onRegenerateLast={() => {
+                  if (isStreaming) return;
+                  if (!activeSession) return;
+                  if (settings.aiRuntime === "disabled") return;
+
+                  // Find last assistant message and regenerate it using context.
+                  const msgs = activeSession.messages ?? [];
+                  const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+                  if (!lastAssistant) return;
+
+                  const lastAssistantIndex = msgs.findIndex((m) => m.id === lastAssistant.id);
+                  const before = msgs.slice(0, lastAssistantIndex);
+                  const lastUser = [...before].reverse().find((m) => m.role === "user");
+                  if (!lastUser) return;
+
+                  // Stop any previous generation.
+                  abortRef.current?.abort();
+                  abortRef.current = null;
+
+                  const controller = new AbortController();
+                  abortRef.current = controller;
+                  setIsStreaming(true);
+
+                  const contextCount = Math.max(1, Math.min(200, Number(settings.contextLastN || 20)));
+                  const historyUpToUser = msgs.slice(0, msgs.findIndex((m) => m.id === lastUser.id) + 1);
+                  const contextMessages =
+                    settings.contextMode === "full"
+                      ? historyUpToUser
+                      : historyUpToUser.slice(Math.max(0, historyUpToUser.length - contextCount));
+
+                  // Clear the assistant message, then stream into it.
+                  setSessions((prev) =>
+                    prev.map((s) => {
+                      if (s.id !== activeSession.id) return s;
+                      return {
+                        ...s,
+                        messages: s.messages.map((m) => (m.id === lastAssistant.id ? { ...m, content: "" } : m)),
+                      };
+                    }),
+                  );
+
+                  (async () => {
+                    let soFar = "";
+                    try {
+                      await streamRuntimeChat({
+                        runtime: settings.aiRuntime,
+                        model: settings.llmModel,
+                        ollamaBaseUrl: settings.ollamaBaseUrl,
+                        openRouterApiKey: settings.openRouterApiKey,
+                        messages: contextMessages.map((m) => ({ role: m.role, content: m.content })),
+                        signal: controller.signal,
+                        onDelta: (chunk) => {
+                          soFar += chunk;
+                          setSessions((prev) =>
+                            prev.map((s) => {
+                              if (s.id !== activeSession.id) return s;
+                              return {
+                                ...s,
+                                messages: s.messages.map((m) =>
+                                  m.id === lastAssistant.id ? { ...m, content: soFar } : m,
+                                ),
+                              };
+                            }),
+                          );
+                        },
+                      });
+                    } catch (e) {
+                      const msg = e instanceof Error ? e.message : "Request failed.";
+                      const final = controller.signal.aborted ? (soFar.trim() ? soFar : "Stopped.") : `Error: ${msg}`;
+                      setSessions((prev) =>
+                        prev.map((s) => {
+                          if (s.id !== activeSession.id) return s;
+                          return {
+                            ...s,
+                            messages: s.messages.map((m) =>
+                              m.id === lastAssistant.id ? { ...m, content: final } : m,
+                            ),
+                          };
+                        }),
+                      );
+                    } finally {
+                      setIsStreaming(false);
+                      if (abortRef.current === controller) abortRef.current = null;
+                    }
+                  })();
+                }}
               />
             </div>
           ) : null}

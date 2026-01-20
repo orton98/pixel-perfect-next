@@ -66,6 +66,8 @@ const settingsSchema = z.object({
   contextMode: z.union([z.literal("full"), z.literal("lastN")]).optional().default("lastN"),
   contextLastN: z.number().int().min(1).max(200).optional().default(20),
 
+  renderMarkdown: z.boolean().optional().default(true),
+
   llmProvider: z.literal("openrouter"),
   llmModel: z.string().trim().min(1).max(200),
   openRouterApiKey: z.string().max(500),

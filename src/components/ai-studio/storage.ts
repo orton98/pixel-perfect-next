@@ -21,6 +21,9 @@ export const defaultSettings: SettingsState = {
   contextMode: "lastN",
   contextLastN: 20,
 
+  // Rendering
+  renderMarkdown: true,
+
   // Legacy fields (still used for model preference + BYOK OpenRouter)
   llmProvider: "openrouter",
   llmModel: "openai/gpt-4o-mini",
