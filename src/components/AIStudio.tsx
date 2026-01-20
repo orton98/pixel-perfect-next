@@ -1,13 +1,45 @@
 import * as React from "react";
-import { MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
+import {
+  MessageSquarePlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  Settings,
+  Trash2,
+} from "lucide-react";
 
-import type { PresetItem, Session, ChatMessage } from "./ai-studio/types";
-import { defaultPresets, defaultSettings, STORAGE_PRESETS, STORAGE_SETTINGS } from "./ai-studio/storage";
+import type { ChatMessage, PresetItem, Session } from "./ai-studio/types";
+import {
+  defaultPresets,
+  defaultSettings,
+  STORAGE_ACTIVE_SESSION,
+  STORAGE_PRESETS,
+  STORAGE_SESSIONS,
+  STORAGE_SETTINGS,
+} from "./ai-studio/storage";
+import { Modal } from "./ai-studio/Modal";
 import { useLocalStorageState } from "./ai-studio/utils";
 import { SparkMark } from "./ai-studio/SparkMark";
 import { ChatThread } from "./ai-studio/ChatThread";
 import { PromptComposer } from "./ai-studio/PromptComposer";
 import { SettingsDialog } from "./ai-studio/SettingsDialog";
+import { useMediaQuery } from "@/hooks/use-media-query";
+
+function seedDemoSessions(): Session[] {
+  const createSession = (title: string): Session => ({
+    id: crypto.randomUUID(),
+    title,
+    createdAt: Date.now(),
+    pinned: false,
+    messages: [],
+  });
+
+  return [
+    createSession("Work…"),
+    { ...createSession("Design critique"), createdAt: Date.now() - 1000 * 60 * 60 * 24 * 10 },
+    { ...createSession("Research plan"), createdAt: Date.now() - 1000 * 60 * 60 * 24 * 25 },
+  ];
+}
 
 export default function AIStudio() {
   React.useEffect(() => {
@@ -15,11 +47,43 @@ export default function AIStudio() {
     return () => document.documentElement.classList.remove("dark");
   }, []);
 
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   const [settings, setSettings] = useLocalStorageState(STORAGE_SETTINGS, defaultSettings);
   const [presets, setPresets] = useLocalStorageState(STORAGE_PRESETS, defaultPresets);
 
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+
+  // Sessions: persisted (migrates from seeded demo sessions on first run)
+  const [sessions, setSessions] = useLocalStorageState<Session[]>(STORAGE_SESSIONS, seedDemoSessions());
+  const [activeId, setActiveId] = useLocalStorageState<string>(STORAGE_ACTIVE_SESSION, sessions[0]?.id ?? "");
+
+  // Keep activeId valid
+  React.useEffect(() => {
+    if (!sessions.length) {
+      const seeded = seedDemoSessions();
+      setSessions(seeded);
+      setActiveId(seeded[0].id);
+      return;
+    }
+
+    const exists = sessions.some((s) => s.id === activeId);
+    if (!exists) setActiveId(sessions[0].id);
+  }, [activeId, sessions, setActiveId, setSessions]);
+
+  // Close sidebar automatically when switching to desktop
+  React.useEffect(() => {
+    if (!isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
+  const activeSession = sessions.find((s) => s.id === activeId) || sessions[0];
+  const hasMessages = (activeSession?.messages?.length || 0) > 0;
+
+  const titleFromFirstLine = (text: string) => {
+    const line = String(text || "").trim().split("\n")[0] || "";
+    return line.length > 40 ? `${line.slice(0, 40)}…` : line;
+  };
 
   const createSession = (title: string): Session => ({
     id: crypto.randomUUID(),
@@ -29,30 +93,51 @@ export default function AIStudio() {
     messages: [],
   });
 
-  const [sessions, setSessions] = React.useState<Session[]>(() => [
-    createSession("Work…"),
-    { ...createSession("Design critique"), createdAt: Date.now() - 1000 * 60 * 60 * 24 * 10 },
-    { ...createSession("Research plan"), createdAt: Date.now() - 1000 * 60 * 60 * 24 * 25 },
-  ]);
-
-  const [activeId, setActiveId] = React.useState(() => sessions[0].id);
-
-  const activeSession = sessions.find((s) => s.id === activeId) || sessions[0];
-  const hasMessages = (activeSession?.messages?.length || 0) > 0;
-
-  // NOTE: kept identical to original implementation (snapshot at mount)
-  const isMobile = React.useMemo(() => window.matchMedia && window.matchMedia("(max-width: 768px)").matches, []);
-
-  const titleFromFirstLine = (text: string) => {
-    const line = String(text || "").trim().split("\n")[0] || "";
-    return line.length > 40 ? `${line.slice(0, 40)}…` : line;
-  };
-
   const handleNewChat = () => {
     const next = createSession("New chat");
     setSessions((prev) => [next, ...prev]);
     setActiveId(next.id);
     if (isMobile && settings.sidebarAutoCloseMobile) setSidebarOpen(false);
+  };
+
+  const [renameId, setRenameId] = React.useState<string | null>(null);
+  const [renameValue, setRenameValue] = React.useState("");
+  const renameOpen = renameId !== null;
+
+  const openRename = (s: Session) => {
+    setRenameId(s.id);
+    setRenameValue(s.title);
+  };
+
+  const commitRename = () => {
+    if (!renameId) return;
+    const title = renameValue.trim();
+    if (!title) return;
+    setSessions((prev) => prev.map((s) => (s.id === renameId ? { ...s, title } : s)));
+    setRenameId(null);
+  };
+
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  const deleteOpen = deleteId !== null;
+
+  const commitDelete = () => {
+    if (!deleteId) return;
+
+    const deleting = deleteId;
+
+    setSessions((prev) => {
+      const next = prev.filter((s) => s.id !== deleting);
+
+      // Ensure we always have at least one session.
+      const ensured = next.length ? next : seedDemoSessions();
+
+      // If we deleted the active session, move active to the first remaining.
+      setActiveId((prevActive) => (prevActive === deleting ? ensured[0].id : prevActive));
+
+      return ensured;
+    });
+
+    setDeleteId(null);
   };
 
   const handleSend = ({
@@ -110,6 +195,16 @@ export default function AIStudio() {
         (sidebarOpen ? "md:pl-[280px]" : "md:pl-0")
       }
     >
+      {/* Mobile sidebar overlay */}
+      {isMobile && sidebarOpen ? (
+        <button
+          className="modal-backdrop fixed inset-0 z-30"
+          aria-label="Close sidebar"
+          onClick={() => setSidebarOpen(false)}
+          type="button"
+        />
+      ) : null}
+
       {/* Sidebar */}
       <aside
         className={
@@ -149,23 +244,49 @@ export default function AIStudio() {
 
         <div className="custom-scrollbar flex-1 overflow-y-auto px-2">
           <div className="space-y-1">
-            {sessions.map((s) => (
-              <button
-                key={s.id}
-                className={
-                  "flex w-full items-center gap-2 rounded-lg px-2 text-left transition-colors " +
-                  (settings.compactMode ? "py-0.5 " : "py-1 ") +
-                  (s.id === activeId ? "bg-accent" : "hover:bg-accent")
-                }
-                onClick={() => {
-                  setActiveId(s.id);
-                  if (isMobile && settings.sidebarAutoCloseMobile) setSidebarOpen(false);
-                }}
-                type="button"
-              >
-                <span className="truncate text-sm">{s.title}</span>
-              </button>
-            ))}
+            {sessions.map((s) => {
+              const active = s.id === activeId;
+              return (
+                <div
+                  key={s.id}
+                  className={
+                    "group flex items-center gap-2 rounded-lg px-2 transition-colors " +
+                    (settings.compactMode ? "py-0.5 " : "py-1 ") +
+                    (active ? "bg-accent" : "hover:bg-accent")
+                  }
+                >
+                  <button
+                    className="min-w-0 flex-1 truncate text-left text-sm"
+                    onClick={() => {
+                      setActiveId(s.id);
+                      if (isMobile && settings.sidebarAutoCloseMobile) setSidebarOpen(false);
+                    }}
+                    type="button"
+                  >
+                    {s.title}
+                  </button>
+
+                  <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      className="grid size-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
+                      aria-label="Rename chat"
+                      onClick={() => openRename(s)}
+                    >
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="grid size-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-border/50 hover:text-foreground"
+                      aria-label="Delete chat"
+                      onClick={() => setDeleteId(s.id)}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -251,6 +372,78 @@ export default function AIStudio() {
         presets={presets}
         setPresets={setPresets}
       />
+
+      {/* Rename dialog */}
+      <Modal
+        open={renameOpen}
+        onClose={() => setRenameId(null)}
+        title="Rename chat"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center rounded-full border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              onClick={() => setRenameId(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium"
+              style={{ background: `hsl(var(--primary))`, color: "hsl(0 0% 8%)" }}
+              onClick={commitRename}
+              disabled={!renameValue.trim()}
+            >
+              Save
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground" htmlFor="rename-chat-input">
+            Title
+          </label>
+          <input
+            id="rename-chat-input"
+            className="h-10 w-full rounded-xl border bg-transparent px-3"
+            style={{ borderColor: `hsl(var(--border))` }}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+            }}
+            autoComplete="off"
+          />
+        </div>
+      </Modal>
+
+      {/* Delete confirm */}
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteId(null)}
+        title="Delete chat?"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center rounded-full border border-border bg-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              onClick={() => setDeleteId(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium"
+              style={{ background: `hsl(var(--primary))`, color: "hsl(0 0% 8%)" }}
+              onClick={commitDelete}
+            >
+              Delete
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted-foreground">This will remove the chat and its messages from this device.</p>
+      </Modal>
     </div>
   );
 }
