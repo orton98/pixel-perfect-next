@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowUp, ImagePlus, Mic, X } from "lucide-react";
+import { ArrowUp, ImagePlus, Mic, Square, X } from "lucide-react";
 
 import type { PresetItem, Presets } from "./types";
 import { Popover } from "./Popover";
@@ -8,6 +8,8 @@ export function PromptComposer({
   presets,
   compact,
   onSend,
+  isStreaming,
+  onStop,
 }: {
   presets: Presets;
   compact: boolean;
@@ -18,6 +20,8 @@ export function PromptComposer({
     toolset: PresetItem | null;
     imageUrl: string | null;
   }) => void;
+  isStreaming: boolean;
+  onStop: () => void;
 }) {
   const [value, setValue] = React.useState("");
   const [imageUrl, setImageUrl] = React.useState<string | null>(null);
@@ -42,7 +46,7 @@ export function PromptComposer({
     };
   }, [imageUrl]);
 
-  const canSend = value.trim().length > 0;
+  const canSend = value.trim().length > 0 && !isStreaming;
 
   const handleSend = () => {
     if (!canSend) return;
@@ -173,26 +177,40 @@ export function PromptComposer({
           ) : null}
 
           <div className="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              className="grid size-9 place-items-center rounded-full transition-colors hover:bg-accent"
-              aria-label="Record voice (prototype)"
-            >
-              <Mic className="size-5" aria-hidden="true" />
-            </button>
+            {isStreaming ? (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-transparent px-3 text-sm text-foreground transition-colors hover:bg-accent"
+                onClick={onStop}
+                aria-label="Stop generating"
+              >
+                <Square className="size-4" aria-hidden="true" />
+                Stop
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="grid size-9 place-items-center rounded-full transition-colors hover:bg-accent"
+                  aria-label="Record voice (prototype)"
+                >
+                  <Mic className="size-5" aria-hidden="true" />
+                </button>
 
-            <button
-              type="button"
-              className={
-                "grid size-9 place-items-center rounded-full transition-colors " +
-                (canSend ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")
-              }
-              disabled={!canSend}
-              onClick={handleSend}
-              aria-label="Send message"
-            >
-              <ArrowUp className="size-5" aria-hidden="true" />
-            </button>
+                <button
+                  type="button"
+                  className={
+                    "grid size-9 place-items-center rounded-full transition-colors " +
+                    (canSend ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground")
+                  }
+                  disabled={!canSend}
+                  onClick={handleSend}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="size-5" aria-hidden="true" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

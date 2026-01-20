@@ -63,6 +63,9 @@ const settingsSchema = z.object({
     .default("disabled"),
   ollamaBaseUrl: z.string().trim().min(1).max(2000).optional().default("http://localhost:11434"),
 
+  contextMode: z.union([z.literal("full"), z.literal("lastN")]).optional().default("lastN"),
+  contextLastN: z.number().int().min(1).max(200).optional().default(20),
+
   llmProvider: z.literal("openrouter"),
   llmModel: z.string().trim().min(1).max(200),
   openRouterApiKey: z.string().max(500),
